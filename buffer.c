@@ -108,6 +108,7 @@ TRE_Buf *TRE_Buf_load(TRE_RT *rt, const char *filename) {
 void TRE_Buf_insert_char(TRE_Buf *buf, char c) {
   buf->text.c[buf->gap_start++] = c;
   buf->gap_len--;
+  buf->text_len++;
   check_gap(buf, 0);
 }
 

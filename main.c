@@ -19,9 +19,12 @@ void handle_input(TRE_RT *rt, int c) {
   if (c == KEY_F(12)) {
     exit(0);
   }
-  if (isalpha(c) || isdigit(c) || c == ' ') {
+  else if (isalpha(c) || isdigit(c) || c == ' ') {
     // Do some typing
     TRE_RT_insert_char(rt, c);
+  }
+  else if (c == '\n') {
+    TRE_RT_insert_char(rt, '\n');
   }
   else {
     logt("Other input");

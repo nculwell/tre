@@ -40,7 +40,7 @@ void TRE_Win_draw(TRE_Win *this) {
   logt("Trying to draw window");
   int winsz_x, winsz_y;
   // Clear the old contents of the window
-  wborder(this->win, ' ', ' ', ' ',' ',' ',' ',' ',' ');
+  wclear(this->win);
   // Get some bounds info
   getmaxyx(this->win, winsz_y, winsz_x);
   bufpos_t pos = this->view_start_pos;
