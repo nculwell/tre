@@ -179,7 +179,7 @@ void TRE_Buf_move(TRE_Buf* buf, int distance_chars) {
   if (distance_chars < 0
       && buf->gap_start < (bufpos_t)(-distance_chars)) {
     log_warn("Movement attempted to pass the start of the buffer.");
-    TRE_Buf_goto_byte(buf, 0);
+    TRE_Buf_move_gap(buf, 0);
     return;
   }
   // Movement would pass the end of the buffer.
@@ -187,7 +187,7 @@ void TRE_Buf_move(TRE_Buf* buf, int distance_chars) {
   if (distance_chars > 0
       && buf->gap_start + buf->gap_len + distance_chars > end) {
     log_warn("Movement attempted to pass the end of the buffer.");
-    TRE_Buf_goto_byte(buf, 0);
+    TRE_Buf_move_gap(buf, 0);
     return;
   }
   logt("Moving character (%ld).", distance_chars);
@@ -239,7 +239,7 @@ void TRE_Buf_move(TRE_Buf* buf, int distance_chars) {
       set_cursor_column(buf, &pos);
     }
   }
-  TRE_Buf_goto_byte(buf, buf->gap_start + distance_chars);
+  TRE_Buf_move_gap(buf, buf->gap_start + distance_chars);
 }
 
 // Move forward (positive) or backward (negative) in the buffer by a given
@@ -289,7 +289,7 @@ void TRE_Buf_move_line(TRE_Buf* buf, int distance_lines) {
       set_cursor_column(buf, &pos);
     }
     // Make the actual jump with the cursor.
-    TRE_Buf_goto_byte(buf, pos - buf->gap_len);
+    TRE_Buf_move_gap(buf, pos - buf->gap_len);
   }
   else if (distance_lines < 0) {
     // Move backward (up)
@@ -314,7 +314,7 @@ void TRE_Buf_move_line(TRE_Buf* buf, int distance_lines) {
     // the beginning of the line, then set the correct column.
     set_cursor_column(buf, &pos);    
     // Make the actual jump with the cursor.
-    TRE_Buf_goto_byte(buf, pos);
+    TRE_Buf_move_gap(buf, pos);
   }
   else {
     // No movement at all
@@ -363,7 +363,7 @@ TRE_OpResult TRE_Buf_goto_line_and_col(TRE_Buf* buf, unsigned line, unsigned col
 
 // Go to an absolute position in the buffer, expressed in bytes. (Ignoring the
 // space taken up by the gap.)
-TRE_OpResult TRE_Buf_goto_byte(TRE_Buf* buf, bufpos_t absolute_pos) {
+TRE_OpResult TRE_Buf_move_gap(TRE_Buf* buf, bufpos_t absolute_pos) {
   if (absolute_pos >= buf->text_len) {
     log_warn("Goto position is out of bounds, goto call ignored.");
     return TRE_FAIL;
