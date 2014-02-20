@@ -104,3 +104,20 @@ void TRE_Win_backspace(TRE_Win *this) {
   TRE_Buf_backspace(this->buf);
 }
 
+void TRE_Win_arrow_key(TRE_Win *this, int key) {
+  switch (key) {
+    case KEY_LEFT:
+      TRE_Buf_move(this->buf, -1);
+      break;
+    case KEY_RIGHT:
+      TRE_Buf_move(this->buf, +1);
+      break;
+    case KEY_UP:
+      TRE_Buf_move_line(this->buf, -1);
+      break;
+    case KEY_DOWN:
+      TRE_Buf_move_line(this->buf, +1);
+      break;
+  }
+}
+

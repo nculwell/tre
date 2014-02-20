@@ -18,7 +18,16 @@ typedef struct {
   // The status line
   WINDOW *statln;
 } TRE_RT;
+
+// A typesafe enumeration type. (About as typesafe as I can get, in C.)
+typedef struct TRE_OpResult {
+  const char name[8];
+} *TRE_OpResult;
 #endif
+
+// Values used to represent success or failure of a call.
+const struct TRE_OpResult TRE_FAIL = { .name = "failure" };
+const struct TRE_OpResult TRE_SUCC = { .name = "success" };
 
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
@@ -66,5 +75,9 @@ void TRE_RT_insert_char(TRE_RT *this, int c) {
 
 void TRE_RT_backspace(TRE_RT *this) {
   TRE_Win_backspace(this->win);
+}
+
+void TRE_RT_arrow_key(TRE_RT *this, int key) {
+  TRE_Win_arrow_key(this->win, key);
 }
 

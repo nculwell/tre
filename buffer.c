@@ -147,3 +147,76 @@ LOCAL void check_gap(TRE_Buf *buf, size_t extra_space) {
   }
 }
 
+// Move forward (positive) or backward (negative) in the buffer by a given number of characters.
+void TRE_Buf_move(TRE_Buf* buf, ssize_t distance_chars) {
+  // This movement would pass the start of the buffer.
+  if (distance_chars < 0
+      && buf->gap_start < (bufpos_t)(-distance_chars)) {
+    log_warn("Movement attempted to pass the start of the buffer.");
+    TRE_Buf_goto_byte(buf, 0);
+    return;
+  }
+  // Movement would pass the end of the buffer.
+  bufpos_t end = buf->text_len + buf->gap_len;
+  if (distance_chars > 0
+      && buf->gap_start + buf->gap_len + distance_chars > end) {
+    log_warn("Movement attempted to pass the end of the buffer.");
+    TRE_Buf_goto_byte(buf, 0);
+    return;
+  }
+  TRE_Buf_goto_byte(buf, buf->gap_start + distance_chars);
+}
+
+// Move forward (positive) or backward (negative) in the buffer by a given number of lines.
+void TRE_Buf_move_line(TRE_Buf* buf, ssize_t distance_lines) {
+  // TODO: Implement this.
+  logt("Moving line from (%ld), dist %ld", buf->gap_start, distance_lines);
+}
+
+// Go to an absolute position in the buffer, expressed in bytes. (Ignoring the
+// space taken up by the gap.)
+int TRE_Buf_goto_byte(TRE_Buf* buf, bufpos_t absolute_pos) {
+  if (absolute_pos >= buf->text_len) {
+    log_warn("Goto position is out of bounds, goto call ignored.");
+    return 0;
+  }
+  // If moving to before the gap, shift the gap up.
+  // --------------------------------------------|
+  //      |ABSPOS          |  GAP  |             |
+  // ->   |  GAP  |                |             |
+  // --------------------------------------------|
+  if (absolute_pos < buf->gap_start) {
+    size_t block_len = buf->gap_start - absolute_pos;
+    bufpos_t move_to = absolute_pos + buf->gap_len;
+    bufpos_t move_from = absolute_pos;
+    logt("Moving cursor LEFT from %lu to %lu"
+       " (move %lu b from %lu to %lu)",
+       buf->gap_start, absolute_pos,
+       block_len, move_from, move_to);
+    memmove(buf->text.c + move_to, buf->text.c + move_from, block_len);
+  }
+  // If the target is after the gap, shift the gap down.
+  // --------------------------------------------|
+  //      |  GAP  |                |ABSPOS       |
+  // ->   |                |  GAP  |             |
+  // --------------------------------------------|
+  else if (absolute_pos > buf->gap_start) {
+    // Remember in these calculations that the value of absolute_pos doesn't
+    // account for the gap size. (In other words, the actual new gap_start
+    // after this move will be at absolute_pos, not absolute_pos + gap_len.)
+    size_t block_len =  absolute_pos - buf->gap_start;
+    bufpos_t move_to = buf->gap_start;
+    bufpos_t move_from = buf->gap_start + buf->gap_len;
+    logt("Moving cursor RIGHT from %lu to %lu"
+       " (move %lu b from %lu to %lu)",
+       buf->gap_start, absolute_pos,
+       block_len, move_from, move_to);
+    memmove(buf->text.c + move_to, buf->text.c + move_from, block_len);
+  }
+  else {
+    log_info("Moved cursor to current position, nothing to do.");
+  }
+  buf->gap_start = absolute_pos;
+  return 1;
+}
+

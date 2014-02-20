@@ -29,6 +29,9 @@ void handle_input(TRE_RT *rt, int c) {
   else if (c == KEY_BACKSPACE) {
     TRE_RT_backspace(rt);
   }
+  else if (c == KEY_LEFT || c == KEY_RIGHT || c == KEY_UP || c == KEY_DOWN) {
+    TRE_RT_arrow_key(rt, c);
+  }
   else {
     logt("Other input");
   }
