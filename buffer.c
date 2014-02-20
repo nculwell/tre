@@ -105,11 +105,23 @@ TRE_Buf *TRE_Buf_load(TRE_RT *rt, const char *filename) {
   return buf;
 }
 
+// Insert a character into the gap.
 void TRE_Buf_insert_char(TRE_Buf *buf, char c) {
   buf->text.c[buf->gap_start++] = c;
   buf->gap_len--;
   buf->text_len++;
   check_gap(buf, 0);
+}
+
+// Delete the last character before the gap.
+void TRE_Buf_backspace(TRE_Buf *buf) {
+  if (buf->gap_start == 0) {
+    log_info("Attempted to backspace at the start of the buffer.");
+    return;
+  }
+  buf->gap_start--;
+  buf->gap_len++;
+  buf->text_len--;
 }
 
 LOCAL void check_gap(TRE_Buf *buf, size_t extra_space) {

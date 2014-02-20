@@ -36,6 +36,9 @@ void TRE_Win_set_buf(TRE_Win *this, TRE_Buf *buf) {
   this->view_start_pos = view_start_pos;
 }
 
+// TODO: Most of this logic should really be in buffer.c, since it's
+// buffer-related logic. Only buffer.c should be dealing with offsets and
+// especially with the gap.
 void TRE_Win_draw(TRE_Win *this) {
   logt("Trying to draw window");
   int winsz_x, winsz_y;
@@ -95,5 +98,9 @@ void TRE_Win_set_cursor(TRE_Win *this) {
 
 void TRE_Win_insert_char(TRE_Win *this, int c) {
   TRE_Buf_insert_char(this->buf, c);
+}
+
+void TRE_Win_backspace(TRE_Win *this) {
+  TRE_Buf_backspace(this->buf);
 }
 

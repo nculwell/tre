@@ -64,3 +64,7 @@ void TRE_RT_insert_char(TRE_RT *this, int c) {
   TRE_Win_insert_char(this->win, c);
 }
 
+void TRE_RT_backspace(TRE_RT *this) {
+  TRE_Win_backspace(this->win);
+}
+

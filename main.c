@@ -26,6 +26,9 @@ void handle_input(TRE_RT *rt, int c) {
   else if (c == '\n') {
     TRE_RT_insert_char(rt, '\n');
   }
+  else if (c == KEY_BACKSPACE) {
+    TRE_RT_backspace(rt);
+  }
   else {
     logt("Other input");
   }
