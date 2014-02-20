@@ -11,10 +11,13 @@ typedef struct {
 #endif
 
 TRE_Win *TRE_Win_new() {
-  TRE_Win *win = g_new(TRE_Win, 1);
-  win->buf = NULL; // start with no buffer loaded
-  win->view_start_pos = 0;
-  return win;
+  TRE_Win *this = g_new(TRE_Win, 1);
+  this->buf = NULL; // start with no buffer loaded
+  this->view_start_pos = 0;
+  int srcsz_x, scrsz_y;
+  getmaxyx(stdscr, srcsz_x, scrsz_y);
+  this->win = newwin(srcsz_x, scrsz_y, 0, 0);
+  return this;
 }
 
 void TRE_Win_set_buf(TRE_Win *this, TRE_Buf *buf) {
@@ -33,6 +36,7 @@ void TRE_Win_set_buf(TRE_Win *this, TRE_Buf *buf) {
 }
 
 void TRE_Win_draw(TRE_Win *this) {
+  logmsg("Trying to draw window");
   int winsz_x, winsz_y;
   // Clear the old contents of the window
   wborder(this->win, ' ', ' ', ' ',' ',' ',' ',' ',' ');

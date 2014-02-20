@@ -2,3 +2,4 @@ mh_*.h
 tags
 tre
 *.o
+dbg.log
