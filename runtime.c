@@ -41,9 +41,11 @@ void TRE_RT_load_buffer(TRE_RT *this, const char *filename) {
   TRE_Buf *buf = TRE_Buf_load(this, filename);
   if (buf == NULL) {
     // ignore for now
+    logmsg("Failed to load buffer.");
     exit(1);
   }
   TRE_Win_set_buf(this->win, buf);
+  logmsg("File loaded into buffer.");
 }
 
 void TRE_RT_update_screen(TRE_RT *this) {

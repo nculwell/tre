@@ -45,13 +45,15 @@ void TRE_Win_draw(TRE_Win *this) {
   bufpos_t end = this->buf->text_len + this->buf->gap_len;
   for (int y=0; y < winsz_y; y++) {
     // print line, wrapping around
+    logmsg("Printing a line.");
     int x=0;
     while (y < winsz_y && pos < end) {
       if (pos == this->buf->gap_start) {
         pos += this->buf->gap_len;
       }
-      int c = this->buf->text.c[pos];
+      int c = this->buf->text.c[pos++];
       if (c == '\n') {
+        logmsg("Reached newline char.");
         break;
       }
       if (ERR == waddch(this->win, c)) {
@@ -63,6 +65,7 @@ void TRE_Win_draw(TRE_Win *this) {
       if (x == winsz_x) {
         x = 0;
         y++;
+        logmsg("Wrapping around.");
       }
     }
   }

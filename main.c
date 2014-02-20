@@ -31,10 +31,11 @@ void draw_statusbar(TRE_RT *rt) {
 }
 
 int main(int argc, char *argv[]) {
+  init_log();
   TRE_Opts *opts = init_opts(); /* TODO: add in main */
   init_curses(); /* TODO: Make mode option-driven. */
   TRE_RT *rt = TRE_RT_init(opts); /* TODO: add in rt (runs init scripts) */
-  TRE_RT_load_buffer(rt, "main.c");
+  TRE_RT_load_buffer(rt, "tre.c");
   run_editor(rt);
   return 0;
 }
