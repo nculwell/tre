@@ -7,17 +7,12 @@ typedef struct {
   char c;
 } TRE_Opts;
 
-// TODO: Change position/offset variables to use signed int. This allows up to
-// 1GB files on a 32-bit system, which ought to be plenty. Change the load
-// function to fail if a file is too big.
-typedef int bufpos_t;
-
 typedef struct {
   char *filename;
-  bufpos_t buf_size;
-  bufpos_t text_len;
-  bufpos_t gap_start;
-  bufpos_t gap_len;
+  int buf_size;
+  int text_len;
+  int gap_start;
+  int gap_len;
   int cursor_line; // cursor position, line
   int cursor_col;  // cursor position, column
   int n_lines;     // total number of lines in text
@@ -78,9 +73,13 @@ TRE_Buf *TRE_Buf_load(TRE_RT *rt, const char *filename) {
     logt("Loading empty file.");
     return TRE_Buf_new(filename);
   }
+  else if (file_size > INT_MAX) {
+    log_err("File is too large to open on this system.");
+    return NULL;
+  }
   // TODO: Respect MAX_IN_MEMORY_FILE_SIZE
   int buf_size_blocks = (file_size + BUFFER_GAP_SIZE) / BUFFER_BLOCK_SIZE + 1;
-  bufpos_t bufsize = buf_size_blocks * BUFFER_BLOCK_SIZE;
+  int bufsize = buf_size_blocks * BUFFER_BLOCK_SIZE;
   TRE_Buf *buf = g_new(TRE_Buf, 1);
   buf->text.c = g_new(char, bufsize);
   buf->filename = g_strdup(filename);
@@ -94,8 +93,8 @@ TRE_Buf *TRE_Buf_load(TRE_RT *rt, const char *filename) {
   buf->n_lines = 0; // this will be set below
   // Load the file contents into the buffer. (The call to read isn't guaranteed
   // to return all the requested data the first time it's called.)
-  size_t n_read_total = 0;
-  size_t insert_pos = buf->gap_start + buf->gap_len;
+  int n_read_total = 0;
+  int insert_pos = buf->gap_start + buf->gap_len;
   do {
     // Read as much as possible from the file in one go
     ssize_t n_read = read(fd, buf->text.c + insert_pos, file_size);
@@ -108,7 +107,7 @@ TRE_Buf *TRE_Buf_load(TRE_RT *rt, const char *filename) {
     // Count the lines in the portion just read.
     // TODO: While we're at it, find the position for the cursor.
     // (But for now we don't remember cursor position.)
-    for (ssize_t i=0; i < n_read; i++) {
+    for (int i=0; i < n_read; i++) {
       if ('\n' == *(buf->text.c + insert_pos + i)) {
         buf->n_lines++;
       }
@@ -116,7 +115,7 @@ TRE_Buf *TRE_Buf_load(TRE_RT *rt, const char *filename) {
     // Update counts
     n_read_total += n_read;
     insert_pos += n_read;
-  } while (n_read_total < (size_t)file_size);
+  } while (n_read_total < file_size);
   buf->n_lines = 0;
   buf->encoding = TRE_BUF_ENCODING_ASCII;
   logt("File loaded.");
@@ -177,20 +176,20 @@ void TRE_Buf_move(TRE_Buf* buf, int distance_chars) {
   const enum move_linewrap_style_t linewrap_style = MOVE_LINEWRAP_YES;
   // This movement would pass the start of the buffer.
   if (distance_chars < 0
-      && buf->gap_start < (bufpos_t)(-distance_chars)) {
+      && buf->gap_start < -distance_chars) {
     log_warn("Movement attempted to pass the start of the buffer.");
     TRE_Buf_move_gap(buf, 0);
     return;
   }
   // Movement would pass the end of the buffer.
-  bufpos_t end = buf->text_len + buf->gap_len;
+  int end = buf->text_len + buf->gap_len;
   if (distance_chars > 0
       && buf->gap_start + buf->gap_len + distance_chars > end) {
     log_warn("Movement attempted to pass the end of the buffer.");
     TRE_Buf_move_gap(buf, 0);
     return;
   }
-  logt("Moving character (%ld).", distance_chars);
+  logt("Moving character (%d).", distance_chars);
   // Scan the text to see where the cursor will end up.
   if (distance_chars > 0) {
     // Move forward (right)
@@ -245,81 +244,91 @@ void TRE_Buf_move(TRE_Buf* buf, int distance_chars) {
 // Move forward (positive) or backward (negative) in the buffer by a given
 // number of lines.
 // TODO: Parameterize selection of the column to land on after moving.
-void TRE_Buf_move_line(TRE_Buf* buf, int distance_lines) {
-  logt("Moving line from (%ld), dist %ld", buf->gap_start, distance_lines);
+void TRE_Buf_move_linewise(TRE_Buf* buf, int distance_lines) {
+  logt("Moving line from (%d), dist %d", buf->gap_start, distance_lines);
   // TODO: Track persistent "preferred" column across multiple moves.
   // Moving forward and backward are subtly different, so they
   // are handled as distinct cases.
   if (distance_lines > 0) {
-    // Move forward (down)
-    int lines_left_to_move = distance_lines;
-    int pos = buf->gap_start + buf->gap_len;
-    int end = buf->text_len + buf->gap_len;
-    while (lines_left_to_move > 0) {
-      logt("Begin scanning line (pos=%ld, end=%ld).", pos, end);
-      while (pos < end) {
-        logt("Advancing one character.");
-        if (buf->text.c[pos++] == '\n') {
-          logt("Reached newline.");
-          break;
-        }
-      }
-      if (pos == end) {
-        break;
-      }
-      buf->cursor_line++;
-      lines_left_to_move--;
-      logt("Advanced one line.");
-    }
-    // After moving down the requisite number of lines, advance to the correct
-    // column, or to the end of the line/file, whichever comes first.
-    // Exception: if at the end of the file, we're actually past the
-    // destination column, so we need to back up to it.
-    if (pos < end) {
-      int cols_left_to_move = buf->cursor_col;
-      while (pos < end && cols_left_to_move > 0) {
-        if (buf->text.c[pos] == '\n') {
-          break;
-        }
-        pos++, cols_left_to_move--;
-      }
-      buf->cursor_col -= cols_left_to_move;
-    }
-    else {
-      set_cursor_column(buf, &pos);
-    }
-    // Make the actual jump with the cursor.
-    TRE_Buf_move_gap(buf, pos - buf->gap_len);
+    move_cursor_down_linewise(buf, distance_lines);
   }
   else if (distance_lines < 0) {
-    // Move backward (up)
-    int lines_left_to_move = (-distance_lines);
-    int pos = buf->gap_start;
-    while (lines_left_to_move > 0) {
-      while (--pos >= 0) {
-        logt("Regressed one character.");
-        if (buf->text.c[pos] == '\n') {
-          logt("Reached newline.");
-          break;
-        }
-      }
-      if (pos < 0) {
-        break;
-      }
-      buf->cursor_line--;
-      lines_left_to_move--;
-      logt("Regressed one line.");
-    }
-    // After moving up the requisite number of lines, search backward to find
-    // the beginning of the line, then set the correct column.
-    set_cursor_column(buf, &pos);    
-    // Make the actual jump with the cursor.
-    TRE_Buf_move_gap(buf, pos);
+    move_cursor_up_linewise(buf, distance_lines);
   }
   else {
-    // No movement at all
-    return;
+    log_info("Linewise move called for a distance of zero.");
   }
+}
+
+// Move the cursor forward (down), linewise.
+LOCAL TRE_OpResult move_cursor_down_linewise(TRE_Buf* buf, int distance_lines) {
+  int lines_left_to_move = distance_lines;
+  int pos = buf->gap_start + buf->gap_len;
+  int end = buf->text_len + buf->gap_len;
+  while (lines_left_to_move > 0) {
+    logt("Begin scanning line (pos=%d, end=%d).", pos, end);
+    while (pos < end) {
+      logt("Advancing one character.");
+      if (buf->text.c[pos++] == '\n') {
+        logt("Reached newline.");
+        break;
+      }
+    }
+    if (pos == end) {
+      break;
+    }
+    buf->cursor_line++;
+    lines_left_to_move--;
+    logt("Advanced one line.");
+  }
+  // After moving down the requisite number of lines, advance to the correct
+  // column, or to the end of the line/file, whichever comes first.
+  // Exception: if at the end of the file, we're actually past the
+  // destination column, so we need to back up to it.
+  if (pos < end) {
+    int cols_left_to_move = buf->cursor_col;
+    while (pos < end && cols_left_to_move > 0) {
+      if (buf->text.c[pos] == '\n') {
+        break;
+      }
+      pos++, cols_left_to_move--;
+    }
+    buf->cursor_col -= cols_left_to_move;
+  }
+  else {
+    set_cursor_column(buf, &pos);
+  }
+  // Make the actual jump with the cursor.
+  TRE_Buf_move_gap(buf, pos - buf->gap_len);
+  return TRE_SUCC;
+}
+
+// Move cursor backward (up) linewise.
+LOCAL TRE_OpResult move_cursor_up_linewise(TRE_Buf* buf, int distance_lines) {
+  int lines_left_to_move = -distance_lines;
+  int pos = buf->gap_start;
+  while (lines_left_to_move > 0) {
+    while (--pos >= 0) {
+      logt("Regressed one character.");
+      if (buf->text.c[pos] == '\n') {
+        logt("Reached newline.");
+        break;
+      }
+    }
+    if (pos < 0) {
+      pos++;
+      break;
+    }
+    buf->cursor_line--;
+    lines_left_to_move--;
+    logt("Regressed one line.");
+  }
+  // After moving up the requisite number of lines, search backward to find
+  // the beginning of the line, then set the correct column.
+  set_cursor_column(buf, &pos);    
+  // Make the actual jump with the cursor.
+  TRE_Buf_move_gap(buf, pos);
+  return TRE_SUCC;
 }
 
 // Based on a position in the file, scan back to the beginning of the line to
@@ -350,7 +359,7 @@ LOCAL TRE_OpResult set_cursor_column(TRE_Buf* buf, int *pos) {
 /*
 TRE_OpResult TRE_Buf_goto_line_and_col(TRE_Buf* buf, unsigned line, unsigned col) {
   // Track the line and column position through the portion just read.
-  for (bufpos_t i=0; i < n_read; i++) {
+  for (int i=0; i < n_read; i++) {
     if ('\n' == *(buf->text.c + insert_pos + i)) {
       buf->cursor_line++;
       buf->cursor_col = 0;
@@ -363,7 +372,7 @@ TRE_OpResult TRE_Buf_goto_line_and_col(TRE_Buf* buf, unsigned line, unsigned col
 
 // Go to an absolute position in the buffer, expressed in bytes. (Ignoring the
 // space taken up by the gap.)
-TRE_OpResult TRE_Buf_move_gap(TRE_Buf* buf, bufpos_t absolute_pos) {
+TRE_OpResult TRE_Buf_move_gap(TRE_Buf* buf, int absolute_pos) {
   if (absolute_pos >= buf->text_len) {
     log_warn("Goto position is out of bounds, goto call ignored.");
     return TRE_FAIL;
@@ -375,8 +384,8 @@ TRE_OpResult TRE_Buf_move_gap(TRE_Buf* buf, bufpos_t absolute_pos) {
   // --------------------------------------------|
   if (absolute_pos < buf->gap_start) {
     int block_len = buf->gap_start - absolute_pos;
-    bufpos_t move_to = absolute_pos + buf->gap_len;
-    bufpos_t move_from = absolute_pos;
+    int move_to = absolute_pos + buf->gap_len;
+    int move_from = absolute_pos;
     logt("Moving cursor LEFT from %lu to %lu"
        " (move %lu b from %lu to %lu)",
        buf->gap_start, absolute_pos,
@@ -393,8 +402,8 @@ TRE_OpResult TRE_Buf_move_gap(TRE_Buf* buf, bufpos_t absolute_pos) {
     // account for the gap size. (In other words, the actual new gap_start
     // after this move will be at absolute_pos, not absolute_pos + gap_len.)
     int block_len =  absolute_pos - buf->gap_start;
-    bufpos_t move_to = buf->gap_start;
-    bufpos_t move_from = buf->gap_start + buf->gap_len;
+    int move_to = buf->gap_start;
+    int move_from = buf->gap_start + buf->gap_len;
     logt("Moving cursor RIGHT from %lu to %lu"
        " (move %lu b from %lu to %lu)",
        buf->gap_start, absolute_pos,
@@ -412,10 +421,10 @@ TRE_OpResult TRE_Buf_move_gap(TRE_Buf* buf, bufpos_t absolute_pos) {
 // buffer-related logic. Only buffer.c should be dealing with offsets and
 // especially with the gap.
 void TRE_Buf_draw(TRE_Buf *buf, int winsz_y, int winsz_x,
-    bufpos_t view_start_pos, TRE_Win *win) {
+    int view_start_pos, TRE_Win *win) {
   logt("Trying to draw window");
-  bufpos_t pos = view_start_pos;
-  bufpos_t end = buf->text_len + buf->gap_len;
+  int pos = view_start_pos;
+  int end = buf->text_len + buf->gap_len;
   unsigned cursor_x, cursor_y;
   // Print as many lines as we have room for in the window
   for (int y=0; y < winsz_y; y++) {
@@ -459,3 +468,8 @@ void TRE_Buf_draw(TRE_Buf *buf, int winsz_y, int winsz_x,
   }
   TRE_Win_move_cursor(win, cursor_y, cursor_x);
 }
+
+int TRE_Buf_get_cursor_offset(TRE_Buf* buf) {
+  return buf->gap_start;
+}
+

@@ -5,7 +5,7 @@
 #if INTERFACE
 typedef struct {
   TRE_Buf *buf;
-  bufpos_t view_start_pos;
+  int view_start_pos;
   int cursor_x;
   int cursor_y;
   WINDOW *win; // the ncurses window; abstract this later
@@ -23,7 +23,8 @@ TRE_Win *TRE_Win_new(int sz_y, int sz_x, int pos_y, int pos_x) {
 
 void TRE_Win_set_buf(TRE_Win *this, TRE_Buf *buf) {
   this->buf = buf;
-  bufpos_t view_start_pos = buf->gap_start;
+  // TODO: Use a get cursor position function here instead of the gap.
+  int view_start_pos = TRE_Buf_get_cursor_offset(buf);
   // Back up the view start position to the start of the line with the cursor
   // in it (or to the beginning of the file, whichever comes first)
   while (view_start_pos > 0) {
@@ -82,10 +83,10 @@ void TRE_Win_arrow_key(TRE_Win *this, int key) {
       TRE_Buf_move(this->buf, +1);
       break;
     case KEY_UP:
-      TRE_Buf_move_line(this->buf, -1);
+      TRE_Buf_move_linewise(this->buf, -1);
       break;
     case KEY_DOWN:
-      TRE_Buf_move_line(this->buf, +1);
+      TRE_Buf_move_linewise(this->buf, +1);
       break;
   }
 }
