@@ -180,23 +180,27 @@ void TRE_Buf_move(TRE_Buf* buf, ssize_t distance_chars) {
     TRE_Buf_goto_byte(buf, 0);
     return;
   }
+  logt("Moving character (%ld).", distance_chars);
   TRE_Buf_goto_byte(buf, buf->gap_start + distance_chars);
 }
 
-// Move forward (positive) or backward (negative) in the buffer by a given number of lines.
+// Move forward (positive) or backward (negative) in the buffer by a given
+// number of lines.
 void TRE_Buf_move_line(TRE_Buf* buf, ssize_t distance_lines) {
   logt("Moving line from (%ld), dist %ld", buf->gap_start, distance_lines);
-  // Keep track of which column we're at now, because after moving up or down a
-  // line we'll attempt to remain at the same column in the new line.
+  // TODO: Track persistent "preferred" column across multiple moves.
+  // Moving forward and backward are subtly different, so they
+  // are handled as distinct cases.
   if (distance_lines > 0) {
     size_t lines_left_to_move = (size_t)distance_lines;
     bufpos_t pos = buf->gap_start + buf->gap_len;
     bufpos_t end = buf->text_len + buf->gap_len;
     while (lines_left_to_move > 0) {
-      logt("Begin scanning line (pos=%ld, end=%ld.", pos, end);
+      logt("Begin scanning line (pos=%ld, end=%ld).", pos, end);
       while (pos < end) {
         logt("Advancing one character.");
-        if (buf->text.c[pos++] != '\n') {
+        if (buf->text.c[pos++] == '\n') {
+          logt("Reached newline.");
           break;
         }
       }
@@ -208,16 +212,28 @@ void TRE_Buf_move_line(TRE_Buf* buf, ssize_t distance_lines) {
       logt("Advanced one line.");
     }
     // After moving down the requisite number of lines, advance to the correct
-    // column.
-    // TODO
+    // column, or to the end of the line/file, whichever comes first.
+    int cols_left_to_move = buf->cursor_col;
+    while (pos < end && cols_left_to_move > 0) {
+      if (buf->text.c[pos] == '\n') {
+        break;
+      }
+      pos++, cols_left_to_move--;
+    }
+    buf->cursor_col -= cols_left_to_move;
+    // Make the actual jump with the cursor.
     TRE_Buf_goto_byte(buf, pos - buf->gap_len);
   }
   else if (distance_lines < 0) {
     size_t lines_left_to_move = (size_t)(-distance_lines);
     ssize_t pos = buf->gap_start;
     while (lines_left_to_move > 0) {
-      while (pos >= 0 && buf->text.c[pos] != '\n') {
-        pos--;
+      while (--pos >= 0) {
+      logt("Regressed one character.");
+        if (buf->text.c[pos] == '\n') {
+          logt("Reached newline.");
+          break;
+        }
       }
       if (pos < 0) {
         break;
@@ -228,7 +244,21 @@ void TRE_Buf_move_line(TRE_Buf* buf, ssize_t distance_lines) {
     }
     // After moving up the requisite number of lines, search backward to find
     // the beginning of the line, then set the correct column.
-    // TODO
+    int line_length = 0;
+    while (--pos >= 0) {
+      if (buf->text.c[pos] == '\n') {
+        break;
+      }
+      line_length++;
+    }
+    // we went 1 past the beginning of the line, so return to the start
+    pos++;
+    int new_cursor_col = (signed)buf->cursor_col < line_length
+      ? (signed)buf->cursor_col
+      : line_length;
+    pos += new_cursor_col;
+    buf->cursor_col = new_cursor_col;
+    // Make the actual jump with the cursor.
     TRE_Buf_goto_byte(buf, pos);
   }
   else {
@@ -238,7 +268,7 @@ void TRE_Buf_move_line(TRE_Buf* buf, ssize_t distance_lines) {
 }
 
 /*
-TRE_OpResult TRE_Buf_goto_line_col(TRE_Buf* buf, unsigned line, unsigned col) {
+TRE_OpResult TRE_Buf_goto_line_and_col(TRE_Buf* buf, unsigned line, unsigned col) {
   // Track the line and column position through the portion just read.
   for (bufpos_t i=0; i < n_read; i++) {
     if ('\n' == *(buf->text.c + insert_pos + i)) {
