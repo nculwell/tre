@@ -46,53 +46,22 @@ void TRE_Win_draw(TRE_Win *this) {
   wclear(this->win);
   // Get some bounds info
   getmaxyx(this->win, winsz_y, winsz_x);
-  bufpos_t pos = this->view_start_pos;
-  bufpos_t end = this->buf->text_len + this->buf->gap_len;
-  // Print as many lines as we have room for in the window
-  for (int y=0; y < winsz_y; y++) {
-    // print line, wrapping around
-    if (pos == end) {
-      logt("Reached end of file.");
-      break;
-    }
-    logt("Printing a line.");
-    int x=0;
-    while (y < winsz_y && pos < end) {
-      if (pos == this->buf->gap_start) {
-        logt("At cursor position.");
-        // Skip over the gap in the buffer
-        pos += this->buf->gap_len;
-        this->cursor_x = x, this->cursor_y = y;
-      }
-      // Get the char from the buffer, and advance pos
-      int c = this->buf->text.c[pos++];
-      // If this is a newline, do a CR-LF operation
-      if (c == '\n') {
-        logt("Reached newline char.");
-        x = 0;
-        break;
-      }
-      // Display the character
-      wmove(this->win, y, x);
-      if (ERR == waddch(this->win, c)) {
-        // Failed to draw to screen, don't know why.
-        // TODO: do a proper assertion
-        log_err("Failed to display character on screen.");
-        exit(1);
-      } else {
-        // logt("'%c' @ (%d, %d)", c, x, y);
-      }
-      x++;
-      if (x == winsz_x) {
-        x = 0, y++;
-        logt("Wrapping around.");
-      }
-    }
-  }
+  TRE_Buf_draw(this->buf, winsz_y, winsz_x, this->view_start_pos, this);
   wrefresh(this->win);
 }
 
-void TRE_Win_set_cursor(TRE_Win *this) {
+TRE_OpResult TRE_Win_display_char(TRE_Win* this, int y, int x, int c) {
+  wmove(this->win, y, x);
+  waddch(this->win, c);
+  return TRE_SUCC;
+}
+
+void TRE_Win_move_cursor(TRE_Win* this, int y, int x) {
+  this->cursor_y = y;
+  this->cursor_x = x;
+}
+
+void TRE_Win_set_focus(TRE_Win *this) {
   move(this->cursor_y, this->cursor_x);
 }
 

@@ -16,8 +16,10 @@ typedef struct {
   bufpos_t text_len;
   bufpos_t gap_start;
   bufpos_t gap_len;
-  unsigned int n_lines;
-  unsigned int encoding; // determines char width
+  unsigned int cursor_line; // cursor position, line
+  unsigned int cursor_col;  // cursor position, column
+  unsigned int n_lines;     // total number of lines in text
+  unsigned int encoding;    // determines char width
   // This type supports other char types, but for now only char is used.
   union {
     char *c;
@@ -85,10 +87,15 @@ TRE_Buf *TRE_Buf_load(TRE_RT *rt, const char *filename) {
   // Cursor starts at offset 0.
   buf->gap_start = 0;
   buf->gap_len = BUFFER_GAP_SIZE;
-  // Load the file contents into the buffer.
+  buf->cursor_line = 0;
+  buf->cursor_col = 0;
+  buf->n_lines = 0; // this will be set below
+  // Load the file contents into the buffer. (The call to read isn't guaranteed
+  // to return all the requested data the first time it's called.)
   size_t n_read_total = 0;
   size_t insert_pos = buf->gap_start + buf->gap_len;
   do {
+    // Read as much as possible from the file in one go
     ssize_t n_read = read(fd, buf->text.c + insert_pos, file_size);
     if (n_read == -1) {
       log_err("Unable to read file.");
@@ -96,6 +103,15 @@ TRE_Buf *TRE_Buf_load(TRE_RT *rt, const char *filename) {
       close(fd);
       return NULL;
     }
+    // Count the lines in the portion just read.
+    // TODO: While we're at it, find the position for the cursor.
+    // (But for now we don't remember cursor position.)
+    for (ssize_t i=0; i < n_read; i++) {
+      if ('\n' == *(buf->text.c + insert_pos + i)) {
+        buf->n_lines++;
+      }
+    }
+    // Update counts
     n_read_total += n_read;
     insert_pos += n_read;
   } while (n_read_total < (size_t)file_size);
@@ -169,16 +185,68 @@ void TRE_Buf_move(TRE_Buf* buf, ssize_t distance_chars) {
 
 // Move forward (positive) or backward (negative) in the buffer by a given number of lines.
 void TRE_Buf_move_line(TRE_Buf* buf, ssize_t distance_lines) {
-  // TODO: Implement this.
   logt("Moving line from (%ld), dist %ld", buf->gap_start, distance_lines);
+  // Keep track of which column we're at now, because after moving up or down a
+  // line we'll attempt to remain at the same column in the new line.
+  if (distance_lines > 0) {
+    size_t lines_left_to_move = (size_t)distance_lines;
+    bufpos_t pos = buf->gap_start + buf->gap_len;
+    bufpos_t end = buf->text_len;
+    while (lines_left_to_move > 0) {
+      while (pos < end && buf->text.c[pos] != '\n') {
+        pos++;
+      }
+      if (pos == end) {
+        break;
+      }
+      buf->cursor_line++;
+      lines_left_to_move--;
+      logt("Advanced one line.");
+    }
+    // After moving down the requisite number of lines, advance to the correct
+    // column.
+    // TODO
+  }
+  else if (distance_lines < 0) {
+    size_t lines_left_to_move = (size_t)(-distance_lines);
+    ssize_t pos = buf->gap_start;
+    while (lines_left_to_move > 0) {
+      while (pos >= 0 && buf->text.c[pos] != '\n') {
+        pos--;
+      }
+      if (pos < 0) {
+        break;
+      }
+      buf->cursor_line--;
+      lines_left_to_move--;
+      logt("Regressed one line.");
+    }
+    // After moving up the requisite number of lines, search backward to find
+    // the beginning of the line, then set the correct column.
+    // TODO
+  }
 }
+
+/*
+TRE_OpResult TRE_Buf_goto_line_col(TRE_Buf* buf, unsigned line, unsigned col) {
+  // Track the line and column position through the portion just read.
+  for (bufpos_t i=0; i < n_read; i++) {
+    if ('\n' == *(buf->text.c + insert_pos + i)) {
+      buf->cursor_line++;
+      buf->cursor_col = 0;
+    } else {
+      buf->cursor_col++;
+    }
+  }
+}
+*/
 
 // Go to an absolute position in the buffer, expressed in bytes. (Ignoring the
 // space taken up by the gap.)
-int TRE_Buf_goto_byte(TRE_Buf* buf, bufpos_t absolute_pos) {
+TRE_OpResult TRE_Buf_goto_byte(TRE_Buf* buf, bufpos_t absolute_pos) {
   if (absolute_pos >= buf->text_len) {
     log_warn("Goto position is out of bounds, goto call ignored.");
-    return 0;
+    return TRE_FAIL;
   }
   // If moving to before the gap, shift the gap up.
   // --------------------------------------------|
@@ -217,6 +285,57 @@ int TRE_Buf_goto_byte(TRE_Buf* buf, bufpos_t absolute_pos) {
     log_info("Moved cursor to current position, nothing to do.");
   }
   buf->gap_start = absolute_pos;
-  return 1;
+  return TRE_SUCC;
 }
 
+// TODO: Most of this logic should really be in buffer.c, since it's
+// buffer-related logic. Only buffer.c should be dealing with offsets and
+// especially with the gap.
+void TRE_Buf_draw(TRE_Buf *buf, int winsz_y, int winsz_x,
+    bufpos_t view_start_pos, TRE_Win *win) {
+  logt("Trying to draw window");
+  bufpos_t pos = view_start_pos;
+  bufpos_t end = buf->text_len + buf->gap_len;
+  unsigned cursor_x, cursor_y;
+  // Print as many lines as we have room for in the window
+  for (int y=0; y < winsz_y; y++) {
+    // print line, wrapping around
+    if (pos == end) {
+      logt("Reached end of file.");
+      break;
+    }
+    logt("Printing a line.");
+    int x=0;
+    while (y < winsz_y && pos < end) {
+      if (pos == buf->gap_start) {
+        logt("At cursor position.");
+        // Skip over the gap in the buffer
+        pos += buf->gap_len;
+        cursor_x = x, cursor_y = y;
+      }
+      // Get the char from the buffer, and advance pos
+      int c = buf->text.c[pos++];
+      // If this is a newline, do a CR-LF operation
+      if (c == '\n') {
+        logt("Reached newline char.");
+        x = 0;
+        break;
+      }
+      // Display the character
+      if (TRE_FAIL == TRE_Win_display_char(win, y, x, c)) {
+        // Failed to draw to screen, don't know why.
+        // TODO: do a proper assertion
+        log_err("Failed to display character on screen.");
+        exit(1);
+      } else {
+        // logt("'%c' @ (%d, %d)", c, x, y);
+      }
+      x++;
+      if (x == winsz_x) {
+        x = 0, y++;
+        logt("Wrapping around.");
+      }
+    }
+  }
+  TRE_Win_move_cursor(win, cursor_y, cursor_x);
+}
