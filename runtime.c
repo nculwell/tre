@@ -15,6 +15,8 @@ typedef struct {
   TRE_mode_t mode;
   // Current buffer (only one supported right now)
   TRE_Win *win;
+  // The status line
+  WINDOW *statln;
 } TRE_RT;
 #endif
 
@@ -28,8 +30,9 @@ void TRE_RT_err_msg(TRE_RT *rt, const char *msg)
 // This should only be called once
 TRE_RT *TRE_RT_init(TRE_Opts *opts) {
   static TRE_RT rt;
+  rt.win = TRE_Win_new(LINES - 1, COLS, 0, 0);
+  rt.statln = newwin(1, COLS, LINES - 1, 0);
   rt.mode = TRE_MODE_NORMAL;
-  rt.win = TRE_Win_new();
   return &rt;
 }
 
@@ -41,15 +44,19 @@ void TRE_RT_load_buffer(TRE_RT *this, const char *filename) {
   TRE_Buf *buf = TRE_Buf_load(this, filename);
   if (buf == NULL) {
     // ignore for now
-    logmsg("Failed to load buffer.");
+    log_err("Failed to load buffer.");
     exit(1);
   }
   TRE_Win_set_buf(this->win, buf);
-  logmsg("File loaded into buffer.");
+  logt("File loaded into buffer.");
 }
 
 void TRE_RT_update_screen(TRE_RT *this) {
   TRE_Win_draw(this->win);
+  // TODO: Draw status line
+  move(LINES - 1, 0);
+  addstr("-- INSERT --");
+  TRE_Win_set_cursor(this->win);
   refresh();
 }
 

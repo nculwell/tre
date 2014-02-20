@@ -71,7 +71,7 @@ TRE_Buf *TRE_Buf_load(TRE_RT *rt, const char *filename) {
   if (file_size == 0) {
     // Loading an empty file is pretty much like creating a new buffer.
     close(fd);
-    logmsg("Loading empty file.");
+    logt("Loading empty file.");
     return TRE_Buf_new(filename);
   }
   // TODO: Respect MAX_IN_MEMORY_FILE_SIZE
@@ -91,6 +91,7 @@ TRE_Buf *TRE_Buf_load(TRE_RT *rt, const char *filename) {
   do {
     ssize_t n_read = read(fd, buf->text.c + insert_pos, file_size);
     if (n_read == -1) {
+      log_err("Unable to read file.");
       TRE_RT_err_msg(rt, "Unable to read file.");
       close(fd);
       return NULL;
@@ -100,7 +101,7 @@ TRE_Buf *TRE_Buf_load(TRE_RT *rt, const char *filename) {
   } while (n_read_total < (size_t)file_size);
   buf->n_lines = 0;
   buf->encoding = TRE_BUF_ENCODING_ASCII;
-  logmsg("File loaded.");
+  logt("File loaded.");
   return buf;
 }
 

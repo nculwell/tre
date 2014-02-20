@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include <fcntl.h>
 #include <glib.h>
 #include <ncurses.h>

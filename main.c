@@ -7,10 +7,11 @@
 TRE_Opts *init_opts() { return NULL; }
 
 void run_editor(TRE_RT *rt) {
+  refresh();
   while (1) {
+    TRE_RT_update_screen(rt);
     int ch = read_char();
     handle_input(rt, ch);
-    TRE_RT_update_screen(rt);
   }
 }
 
@@ -19,7 +20,7 @@ void handle_input(TRE_RT *rt, int ch) {
     exit(0);
   }
   else {
-    logmsg("Other input");
+    logt("Other input");
   }
 }
 
@@ -31,7 +32,6 @@ void draw_statusbar(TRE_RT *rt) {
 }
 
 int main(int argc, char *argv[]) {
-  init_log();
   TRE_Opts *opts = init_opts(); /* TODO: add in main */
   init_curses(); /* TODO: Make mode option-driven. */
   TRE_RT *rt = TRE_RT_init(opts); /* TODO: add in rt (runs init scripts) */
