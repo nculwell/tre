@@ -105,3 +105,32 @@ TRE_Buf *TRE_Buf_load(TRE_RT *rt, const char *filename) {
   return buf;
 }
 
+void TRE_Buf_insert_char(TRE_Buf *buf, char c) {
+  buf->text.c[buf->gap_start++] = c;
+  buf->gap_len--;
+  check_gap(buf, 0);
+}
+
+LOCAL void check_gap(TRE_Buf *buf, size_t extra_space) {
+  // Check if the gap needs to be expanded. This needs to be done when it
+  // completely runs out of space. (The "extra_space" here is space needed if
+  // we're going to insert a whole block of text into the buffer at once. After
+  // a single-character insert, extra_space is zero.)
+  if (buf->gap_len < extra_space) {
+    buf->gap_len = BUFFER_GAP_SIZE + extra_space;
+    if (buf->text_len + buf->gap_len > buf->buf_size) {
+      // Time to expand the buffer size to fit more text
+      buf->buf_size += BUFFER_BLOCK_SIZE;
+      buf->text.c = g_realloc(buf->text.c, buf->buf_size);
+    }
+    if (buf->gap_start < buf->text_len) {
+      // Gap is before the end of the buffer, so the portion after the gap
+      // needs to be relocated to enlarge the gap. (If the gap is at the end of
+      // the buffer then nothing else needs to be done.
+      memmove(buf->text.c + buf->gap_start + buf->gap_len,
+          buf->text.c + buf->gap_start,
+          buf->text_len - buf->gap_start);
+    }
+  }
+}
+

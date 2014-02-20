@@ -60,3 +60,7 @@ void TRE_RT_update_screen(TRE_RT *this) {
   refresh();
 }
 
+void TRE_RT_insert_char(TRE_RT *this, int c) {
+  TRE_Win_insert_char(this->win, c);
+}
+

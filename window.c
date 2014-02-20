@@ -93,3 +93,7 @@ void TRE_Win_set_cursor(TRE_Win *this) {
   move(this->cursor_y, this->cursor_x);
 }
 
+void TRE_Win_insert_char(TRE_Win *this, int c) {
+  TRE_Buf_insert_char(this->buf, c);
+}
+

@@ -10,14 +10,18 @@ void run_editor(TRE_RT *rt) {
   refresh();
   while (1) {
     TRE_RT_update_screen(rt);
-    int ch = read_char();
-    handle_input(rt, ch);
+    int c = read_char();
+    handle_input(rt, c);
   }
 }
 
-void handle_input(TRE_RT *rt, int ch) {
-  if (ch == 'q' || ch == 'Q') {
+void handle_input(TRE_RT *rt, int c) {
+  if (c == KEY_F(12)) {
     exit(0);
+  }
+  if (isalpha(c) || isdigit(c) || c == ' ') {
+    // Do some typing
+    TRE_RT_insert_char(rt, c);
   }
   else {
     logt("Other input");
