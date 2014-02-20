@@ -19,11 +19,11 @@ release: CFLAGS += -DNDEBUG
 release: common
 	strip $(EXECUTABLE)
 common: prebuild $(SOURCES) $(EXECUTABLE)
-	@echo ---------- BUILD COMPLETED SUCCESSFULLY ----------
+#	@echo ---------- BUILD COMPLETED SUCCESSFULLY ----------
 
 prebuild:
-	@echo --------------------------------------------------
-	makeheaders $(join $(SOURCES), $(HEADERS))
+#	@echo --------------------------------------------------
+	@makeheaders $(join $(SOURCES), $(HEADERS))
 
 $(EXECUTABLE): $(OBJECTS)
 

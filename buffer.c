@@ -191,10 +191,14 @@ void TRE_Buf_move_line(TRE_Buf* buf, ssize_t distance_lines) {
   if (distance_lines > 0) {
     size_t lines_left_to_move = (size_t)distance_lines;
     bufpos_t pos = buf->gap_start + buf->gap_len;
-    bufpos_t end = buf->text_len;
+    bufpos_t end = buf->text_len + buf->gap_len;
     while (lines_left_to_move > 0) {
-      while (pos < end && buf->text.c[pos] != '\n') {
-        pos++;
+      logt("Begin scanning line (pos=%ld, end=%ld.", pos, end);
+      while (pos < end) {
+        logt("Advancing one character.");
+        if (buf->text.c[pos++] != '\n') {
+          break;
+        }
       }
       if (pos == end) {
         break;
@@ -206,6 +210,7 @@ void TRE_Buf_move_line(TRE_Buf* buf, ssize_t distance_lines) {
     // After moving down the requisite number of lines, advance to the correct
     // column.
     // TODO
+    TRE_Buf_goto_byte(buf, pos - buf->gap_len);
   }
   else if (distance_lines < 0) {
     size_t lines_left_to_move = (size_t)(-distance_lines);
@@ -224,6 +229,11 @@ void TRE_Buf_move_line(TRE_Buf* buf, ssize_t distance_lines) {
     // After moving up the requisite number of lines, search backward to find
     // the beginning of the line, then set the correct column.
     // TODO
+    TRE_Buf_goto_byte(buf, pos);
+  }
+  else {
+    // No movement at all
+    return;
   }
 }
 
