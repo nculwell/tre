@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <ctype.h>
 #include <fcntl.h>
 #include <glib.h>

@@ -2,6 +2,8 @@
 #include "hdrs.c"
 #include "mh_buffer.h"
 
+// #define LOG_DRAWING
+
 #if INTERFACE
 typedef struct {
   char c;
@@ -164,10 +166,12 @@ LOCAL void check_gap(TRE_Buf *buf, int extra_space) {
   }
 }
 
+#if INTERFACE
 enum move_linewrap_style_t {
   MOVE_LINEWRAP_NO,
   MOVE_LINEWRAP_YES
 };
+#endif
 
 // Move forward (positive) or backward (negative) in the buffer by a given
 // number of characters.
@@ -178,7 +182,6 @@ void TRE_Buf_move(TRE_Buf* buf, int distance_chars) {
   if (distance_chars < 0
       && buf->gap_start < -distance_chars) {
     log_warn("Movement attempted to pass the start of the buffer.");
-    TRE_Buf_move_gap(buf, 0);
     return;
   }
   // Movement would pass the end of the buffer.
@@ -186,59 +189,98 @@ void TRE_Buf_move(TRE_Buf* buf, int distance_chars) {
   if (distance_chars > 0
       && buf->gap_start + buf->gap_len + distance_chars > end) {
     log_warn("Movement attempted to pass the end of the buffer.");
-    TRE_Buf_move_gap(buf, 0);
     return;
   }
-  logt("Moving character (%d).", distance_chars);
+  logt("Moving character from %d, dist %d.", buf->gap_start, distance_chars);
   // Scan the text to see where the cursor will end up.
   if (distance_chars > 0) {
-    // Move forward (right)
-    int chars_left_to_move = distance_chars;
-    int pos = buf->gap_start + buf->gap_len;
-    int end = buf->text_len + buf->gap_len;
-    while (pos < end && chars_left_to_move > 0) {
-      logt("Advancing one character.");
-      if (buf->text.c[pos++] == '\n') {
-        logt("Reached newline.");
-        if (linewrap_style == MOVE_LINEWRAP_NO) {
-          logt("Not wrapping to next line due to setting.");
-          break;
-        }
-        logt("Wrapping to next line due to setting.");
-        buf->cursor_line++;
-        buf->cursor_col = 0;
-      }
-      else {
-        buf->cursor_col++;
-      }
-      chars_left_to_move--;
-    }
+    mv_curs_right_charwise(buf, distance_chars, linewrap_style);
+    TRE_Buf_move_gap(buf, buf->gap_start + distance_chars);
   }
   else if (distance_chars < 0) {
-    // Move backward (left)
-    int pos = buf->gap_start;
-    int end = buf->gap_start + distance_chars;
-    int crossed_newline = 0;
-    while (pos-- >= end) {
-      logt("Regressed one character.");
-      if (buf->text.c[pos] == '\n') {
-        logt("Reached newline.");
-        if (linewrap_style == MOVE_LINEWRAP_NO) {
-          logt("Not wrapping to next line due to setting.");
-          break;
-        }
-        logt("Wrapping to previous line due to setting.");
-        buf->cursor_line--;
-      }
-      if (pos < 0) {
+    mv_curs_left_charwise(buf, -distance_chars, linewrap_style);
+  }
+  logt("Cursor position: %d, %d", buf->cursor_line, buf->cursor_col);
+}
+
+LOCAL TRE_OpResult mv_curs_right_charwise(TRE_Buf* buf,
+    int distance_chars, move_linewrap_style_t linewrap_style) {
+  int pos = buf->gap_start + buf->gap_len;
+  int end = pos + distance_chars;
+  int buf_end = buf->text_len + buf->gap_len - 1;
+  if (buf_end < end) {
+    end = buf_end;
+  }
+  while (pos < end) {
+    logt("Advancing one character.");
+    if (buf->text.c[pos++] == '\n') {
+      logt("Reached newline.");
+      if (linewrap_style == MOVE_LINEWRAP_NO) {
+        logt("Not wrapping to next line due to setting.");
         break;
       }
+      logt("Wrapping to next line due to setting.");
+      buf->cursor_line++;
+      buf->cursor_col = 0;
     }
-    if (crossed_newline) {
-      set_cursor_column(buf, &pos);
+    else {
+      buf->cursor_col++;
     }
   }
-  TRE_Buf_move_gap(buf, buf->gap_start + distance_chars);
+  return TRE_SUCC;
+}
+
+LOCAL TRE_OpResult mv_curs_left_charwise(TRE_Buf* buf, int n_chars,
+    move_linewrap_style_t linewrap_style) {
+  // If the entire move will be within the current line, no need to inspect any
+  // intermediate characters along the way.
+  if (n_chars <= buf->cursor_col) {
+    logt("Simple move (within line)");
+    buf->cursor_col -= n_chars;
+    TRE_Buf_move_gap(buf, buf->gap_start - n_chars);
+    return TRE_SUCC;
+  }
+  // Otherwise, begin by backing up to the beginning of the line, then one more
+  // character beyond onto the newline that terminates the previous line.
+  int pos = buf->gap_start - buf->cursor_col - 1;
+  int chars_left_to_move = n_chars - buf->cursor_col - 1;
+  int lines_moved = 1;
+  // If a horizontal move should't cross line bounds, then stop movement at the
+  // first character in the line.
+  if (linewrap_style == MOVE_LINEWRAP_NO) {
+    logt("Stopped at beginning of line (MOVE_LINEWRAP_NO)");
+    buf->cursor_col = 0;
+    TRE_Buf_move_gap(buf, pos + 1);
+    return TRE_SUCC;
+  }
+  // From here on, we have to actually scan the characters to find the newline
+  // terminating each previous line. (Or the beginning of the file.)
+  while (chars_left_to_move > 0 && pos > 0) {
+    logt("Scanning line from %d", pos);
+    // Scan back to find where the line starts
+    int next_pos = find_line_precedent(buf, pos);
+    // Subtract the distance moved from the chars left to move
+    chars_left_to_move -= pos - next_pos;
+    // Continue until we've moved far enough or reached 0
+    pos = next_pos;
+    lines_moved++;
+  }
+  // By now there's a good chance we've overshot the mark in looking for the
+  // position we want. The (negative) value of chars_left_to_move tells us how
+  // much we overshot by. It also tells us the column number of the new position.
+  // Since we passed the beginning of the line, if we the position forward
+  // again we also cross back over the newline, so in that case (if
+  // chars_left_to_move < 0) then we also decrease the number of lines moved by
+  // one to account for this.
+  logt("Destination overshoot: %d", -chars_left_to_move);
+  int final_pos = pos - chars_left_to_move;
+  if (chars_left_to_move == 0) {
+    lines_moved--;
+  }
+  buf->cursor_line = buf->cursor_line - lines_moved;
+  buf->cursor_col = -chars_left_to_move;
+  TRE_Buf_move_gap(buf, final_pos);
+  return TRE_SUCC;
 }
 
 // Move forward (positive) or backward (negative) in the buffer by a given
@@ -250,10 +292,10 @@ void TRE_Buf_move_linewise(TRE_Buf* buf, int distance_lines) {
   // Moving forward and backward are subtly different, so they
   // are handled as distinct cases.
   if (distance_lines > 0) {
-    move_cursor_down_linewise(buf, distance_lines);
+    mv_curs_down_linewise(buf, distance_lines);
   }
   else if (distance_lines < 0) {
-    move_cursor_up_linewise(buf, distance_lines);
+    mv_curs_up_linewise(buf, distance_lines);
   }
   else {
     log_info("Linewise move called for a distance of zero.");
@@ -261,7 +303,7 @@ void TRE_Buf_move_linewise(TRE_Buf* buf, int distance_lines) {
 }
 
 // Move the cursor forward (down), linewise.
-LOCAL TRE_OpResult move_cursor_down_linewise(TRE_Buf* buf, int distance_lines) {
+LOCAL TRE_OpResult mv_curs_down_linewise(TRE_Buf* buf, int distance_lines) {
   int lines_left_to_move = distance_lines;
   int pos = buf->gap_start + buf->gap_len;
   int end = buf->text_len + buf->gap_len;
@@ -304,7 +346,7 @@ LOCAL TRE_OpResult move_cursor_down_linewise(TRE_Buf* buf, int distance_lines) {
 }
 
 // Move cursor backward (up) linewise.
-LOCAL TRE_OpResult move_cursor_up_linewise(TRE_Buf* buf, int distance_lines) {
+LOCAL TRE_OpResult mv_curs_up_linewise(TRE_Buf* buf, int distance_lines) {
   int lines_left_to_move = -distance_lines;
   int pos = buf->gap_start;
   while (lines_left_to_move > 0) {
@@ -329,6 +371,21 @@ LOCAL TRE_OpResult move_cursor_up_linewise(TRE_Buf* buf, int distance_lines) {
   // Make the actual jump with the cursor.
   TRE_Buf_move_gap(buf, pos);
   return TRE_SUCC;
+}
+
+// Based on a position in the file, scan back to the beginning of the line to
+// find the newline (or file edge) that precedes it. Return the position of the
+// character before the first in this line. Since this function scans backward
+// and doesn't check if it's passing the gap, it's only valid if called with a
+// position that precedes the gap.
+LOCAL int find_line_precedent(TRE_Buf* buf, int pos) {
+  assert(pos > buf->gap_start); // function is only valid before the gap
+  while (--pos >= 0) {
+    if (buf->text.c[pos] == '\n') {
+      break;
+    }
+  }
+  return pos;
 }
 
 // Based on a position in the file, scan back to the beginning of the line to
@@ -386,8 +443,8 @@ TRE_OpResult TRE_Buf_move_gap(TRE_Buf* buf, int absolute_pos) {
     int block_len = buf->gap_start - absolute_pos;
     int move_to = absolute_pos + buf->gap_len;
     int move_from = absolute_pos;
-    logt("Moving cursor LEFT from %lu to %lu"
-       " (move %lu b from %lu to %lu)",
+    logt("Moving cursor LEFT from %d to %d"
+       " (move %d b from %d to %d)",
        buf->gap_start, absolute_pos,
        block_len, move_from, move_to);
     memmove(buf->text.c + move_to, buf->text.c + move_from, block_len);
@@ -404,8 +461,8 @@ TRE_OpResult TRE_Buf_move_gap(TRE_Buf* buf, int absolute_pos) {
     int block_len =  absolute_pos - buf->gap_start;
     int move_to = buf->gap_start;
     int move_from = buf->gap_start + buf->gap_len;
-    logt("Moving cursor RIGHT from %lu to %lu"
-       " (move %lu b from %lu to %lu)",
+    logt("Moving cursor RIGHT from %d to %d"
+       " (move %d b from %d to %d)",
        buf->gap_start, absolute_pos,
        block_len, move_from, move_to);
     memmove(buf->text.c + move_to, buf->text.c + move_from, block_len);
@@ -430,14 +487,20 @@ void TRE_Buf_draw(TRE_Buf *buf, int winsz_y, int winsz_x,
   for (int y=0; y < winsz_y; y++) {
     // print line, wrapping around
     if (pos == end) {
+#ifdef LOG_DRAWING
       logt("Reached end of file.");
+#endif
       break;
     }
+#ifdef LOG_DRAWING
     logt("Printing a line.");
+#endif
     int x=0;
     while (y < winsz_y && pos < end) {
       if (pos == buf->gap_start) {
+#ifdef LOG_DRAWING
         logt("At cursor position.");
+#endif
         // Skip over the gap in the buffer
         pos += buf->gap_len;
         cursor_x = x, cursor_y = y;
@@ -446,7 +509,9 @@ void TRE_Buf_draw(TRE_Buf *buf, int winsz_y, int winsz_x,
       int c = buf->text.c[pos++];
       // If this is a newline, do a CR-LF operation
       if (c == '\n') {
+#ifdef LOG_DRAWING
         logt("Reached newline char.");
+#endif
         x = 0;
         break;
       }
@@ -462,7 +527,9 @@ void TRE_Buf_draw(TRE_Buf *buf, int winsz_y, int winsz_x,
       x++;
       if (x == winsz_x) {
         x = 0, y++;
+#ifdef LOG_DRAWING
         logt("Wrapping around.");
+#endif
       }
     }
   }

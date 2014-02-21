@@ -59,8 +59,11 @@ void TRE_RT_load_buffer(TRE_RT *this, const char *filename) {
 void TRE_RT_update_screen(TRE_RT *this) {
   TRE_Win_draw(this->win);
   // TODO: Draw status line
-  move(LINES - 1, 0);
-  addstr("-- INSERT --");
+  mvprintw(LINES - 1, 0, "                    ");
+  mvprintw(LINES - 1, 0,
+      "CURSOR: %d, %d",
+      this->win->buf->cursor_line, 
+      this->win->buf->cursor_col);
   TRE_Win_set_focus(this->win);
   refresh();
 }
