@@ -245,8 +245,8 @@ LOCAL TRE_OpResult mv_curs_left_charwise(TRE_Buf* buf, int n_chars,
   int pos = buf->gap_start - buf->cursor_col - 1;
   int chars_left_to_move = n_chars - buf->cursor_col - 1;
   int lines_moved = 1;
-  // If a horizontal move should't cross line bounds, then stop movement at the
-  // first character in the line.
+  // If a horizontal move shouldn't cross line bounds, then stop movement at
+  // the first character in the line.
   if (linewrap_style == MOVE_LINEWRAP_NO) {
     logt("Stopped at beginning of line (MOVE_LINEWRAP_NO)");
     buf->cursor_col = 0;
@@ -255,10 +255,11 @@ LOCAL TRE_OpResult mv_curs_left_charwise(TRE_Buf* buf, int n_chars,
   }
   // From here on, we have to actually scan the characters to find the newline
   // terminating each previous line. (Or the beginning of the file.)
-  while (chars_left_to_move > 0 && pos > 0) {
+  while (chars_left_to_move >= 0 && pos > 0) {
     logt("Scanning line from %d", pos);
     // Scan back to find where the line starts
     int next_pos = find_line_precedent(buf, pos);
+    logt("Scan ended at %d", pos);
     // Subtract the distance moved from the chars left to move
     chars_left_to_move -= pos - next_pos;
     // Continue until we've moved far enough or reached 0
@@ -272,13 +273,26 @@ LOCAL TRE_OpResult mv_curs_left_charwise(TRE_Buf* buf, int n_chars,
   // again we also cross back over the newline, so in that case (if
   // chars_left_to_move < 0) then we also decrease the number of lines moved by
   // one to account for this.
-  logt("Destination overshoot: %d", -chars_left_to_move);
+  logt("Destination overshoot %d, lines moved %d", -chars_left_to_move,
+      lines_moved);
   int final_pos = pos - chars_left_to_move;
-  if (chars_left_to_move == 0) {
+  // Set the line number according to how many lines we moved.
+  if (chars_left_to_move != 0) {
     lines_moved--;
   }
   buf->cursor_line = buf->cursor_line - lines_moved;
-  buf->cursor_col = -chars_left_to_move;
+  // Set the column number.
+  if (final_pos == 0) {
+    // The cursor won't be handled quite right when we reach the beginning of
+    // the buffer because we don't overshoot it the way we do with line
+    // boundaries. Just assign 0 for the column number since we know that's
+    // what it should be.
+    buf->cursor_col = 0;
+  }
+  else {
+    // Additional -1 to col because col numbering starts from zero.
+    buf->cursor_col = -chars_left_to_move - 1;
+  }
   TRE_Buf_move_gap(buf, final_pos);
   return TRE_SUCC;
 }
@@ -310,7 +324,7 @@ LOCAL TRE_OpResult mv_curs_down_linewise(TRE_Buf* buf, int distance_lines) {
   while (lines_left_to_move > 0) {
     logt("Begin scanning line (pos=%d, end=%d).", pos, end);
     while (pos < end) {
-      logt("Advancing one character.");
+      // logt("Advancing one character.");
       if (buf->text.c[pos++] == '\n') {
         logt("Reached newline.");
         break;
@@ -379,7 +393,8 @@ LOCAL TRE_OpResult mv_curs_up_linewise(TRE_Buf* buf, int distance_lines) {
 // and doesn't check if it's passing the gap, it's only valid if called with a
 // position that precedes the gap.
 LOCAL int find_line_precedent(TRE_Buf* buf, int pos) {
-  assert(pos > buf->gap_start); // function is only valid before the gap
+  logt("find_line_precedent: pos=%d; gap_start=%d", pos, buf->gap_start);
+  assert(pos <= buf->gap_start); // function is only valid before the gap
   while (--pos >= 0) {
     if (buf->text.c[pos] == '\n') {
       break;
