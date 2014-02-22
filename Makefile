@@ -9,7 +9,7 @@ LDLIBS=$(shell pkg-config --libs glib-2.0) -lncurses
 SOURCES=$(wildcard *.c)
 HEADERS=$(addprefix :mh_, $(addsuffix .h, $(basename $(SOURCES))))
 OBJECTS=$(SOURCES:.c=.o)
-SUBPROJECTS=libtermkey-0.17
+SUBPROJECTS=libtermkey
 
 EXECUTABLE=tre
 
