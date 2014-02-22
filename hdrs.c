@@ -1,5 +1,6 @@
 #define _XOPEN_SOURCE
 #define _XOPEN_SOURCE_EXTENDED
+#include "libtermkey/termkey.h"
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
