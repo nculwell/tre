@@ -3,7 +3,11 @@
 
 // Insert a character into the gap.
 void TRE_Buf_insert_char(TRE_Buf *buf, char c) {
+  // Editing clears the column affinity.
+  TRE_Buf_clear_col_affinity(buf);
+  // Put the character into the buffer at the start of the gap.
   buf->text.c[buf->gap_start++] = c;
+  // Update buffer position info.
   if (c == '\n') {
     // Inserting a newline splits the current line. (It's really a new line but
     // the new info is written directly into buf->cursor_line.)
@@ -18,11 +22,15 @@ void TRE_Buf_insert_char(TRE_Buf *buf, char c) {
   }
   buf->gap_len--;
   buf->text_len++;
+  // On insertions (when the gap gets smaller) it's necessary to check if we
+  // have to create a new gap.
   check_gap(buf, 0);
 }
 
 // Delete the first character after the gap.
 void TRE_Buf_delete(TRE_Buf *buf) {
+  // Editing clears the column affinity.
+  TRE_Buf_clear_col_affinity(buf);
   if (buf->gap_start == buf->text_len) {
     log_info("Attempted to delete at the end of the buffer.");
     return;
@@ -42,6 +50,8 @@ void TRE_Buf_delete(TRE_Buf *buf) {
 
 // Delete the last character before the gap.
 void TRE_Buf_backspace(TRE_Buf *buf) {
+  // Editing clears the column affinity.
+  TRE_Buf_clear_col_affinity(buf);
   if (buf->gap_start == 0) {
     log_info("Attempted to backspace at the start of the buffer.");
     return;

@@ -62,8 +62,10 @@ enum move_linewrap_style_t {
 // Move forward (positive) or backward (negative) in the buffer by a given
 // number of characters.
 // TODO: Parameterize line wraparound behavior.
-void TRE_Buf_move(TRE_Buf* buf, int distance_chars) {
+void TRE_Buf_move_charwise(TRE_Buf* buf, int distance_chars) {
   const enum move_linewrap_style_t linewrap_style = MOVE_LINEWRAP_YES;
+  // Sideward movement clears the column affinity.
+  TRE_Buf_clear_col_affinity(buf);
   // This movement would pass the start of the buffer.
   if (distance_chars < 0
       && buf->gap_start < -distance_chars) {
@@ -302,7 +304,7 @@ void TRE_Buf_move_linewise(TRE_Buf* buf, int distance_lines) {
     }
   }
   // Set the cursor column affinity if unset.
-  if (buf->col_affinity != -1) {
+  if (buf->col_affinity == -1) {
     logt("Setting col affinity to match cursor col (%d)", buf->cursor_col);
     buf->col_affinity = buf->cursor_col;
   }

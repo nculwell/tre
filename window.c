@@ -77,10 +77,10 @@ void TRE_Win_backspace(TRE_Win *this) {
 void TRE_Win_arrow_key(TRE_Win *this, int key) {
   switch (key) {
     case KEY_LEFT:
-      TRE_Buf_move(this->buf, -1);
+      TRE_Buf_move_charwise(this->buf, -1);
       break;
     case KEY_RIGHT:
-      TRE_Buf_move(this->buf, +1);
+      TRE_Buf_move_charwise(this->buf, +1);
       break;
     case KEY_UP:
       TRE_Buf_move_linewise(this->buf, -1);
