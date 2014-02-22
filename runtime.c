@@ -84,3 +84,38 @@ void TRE_RT_arrow_key(TRE_RT *this, int key) {
   TRE_Win_arrow_key(this->win, key);
 }
 
+void TRE_RT_handle_input(TRE_RT *rt, int c) {
+  switch (c) {
+
+    case KEY_F(5):
+      logt("KEY: EXECUTE");
+      break;
+
+    case KEY_F(12):
+      exit(0);
+
+    case KEY_BACKSPACE:
+      TRE_RT_backspace(rt);
+      break;
+
+    case KEY_LEFT:
+    case KEY_RIGHT:
+    case KEY_UP:
+    case KEY_DOWN:
+      TRE_RT_arrow_key(rt, c);
+      break;
+
+    case ' ':
+    case '\n':
+insert:
+      TRE_RT_insert_char(rt, c);
+      break;
+
+    default:
+      if (isalpha(c) || isdigit(c)) {
+        goto insert;
+      }
+      logt("Unsupported key pressed: 0x%x", c);
+      break;
+  }
+}

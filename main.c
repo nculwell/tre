@@ -11,7 +11,7 @@ void run_editor(TRE_RT *rt) {
   while (1) {
     TRE_RT_update_screen(rt);
     int c = read_char();
-    handle_input(rt, c);
+    TRE_RT_handle_input(rt, c);
   }
 }
 
@@ -23,28 +23,6 @@ LOCAL catch_signals() {
   }
 }
 */
-
-void handle_input(TRE_RT *rt, int c) {
-  if (c == KEY_F(12)) {
-    exit(0);
-  }
-  else if (isalpha(c) || isdigit(c) || c == ' ') {
-    // Do some typing
-    TRE_RT_insert_char(rt, c);
-  }
-  else if (c == '\n') {
-    TRE_RT_insert_char(rt, '\n');
-  }
-  else if (c == KEY_BACKSPACE) {
-    TRE_RT_backspace(rt);
-  }
-  else if (c == KEY_LEFT || c == KEY_RIGHT || c == KEY_UP || c == KEY_DOWN) {
-    TRE_RT_arrow_key(rt, c);
-  }
-  else {
-    logt("Other input");
-  }
-}
 
 void draw_statusbar(TRE_RT *rt) {
   TRE_mode_t mode = TRE_RT_get_mode(rt);

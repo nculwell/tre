@@ -25,6 +25,7 @@ TRE_Buf *TRE_Buf_new(const char *filename) {
   buf->gap_len = TRE_BUFFER_GAP_SIZE;
   buf->n_lines = 0;
   buf->encoding = TRE_BUF_ENCODING_ASCII;
+  buf->col_affinity = -1;
   return buf;
 }
 
@@ -60,6 +61,7 @@ TRE_Buf *TRE_Buf_load(TRE_RT *rt, const char *filename) {
   // Cursor starts at offset 0.
   buf->gap_start = 0;
   buf->gap_len = TRE_BUFFER_GAP_SIZE;
+  buf->col_affinity = -1;
   // Whatever line number is set here is searched for below and its bounds will
   // be saved in buf->cursor_line.
   line_col_t saved_file_position;
