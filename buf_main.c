@@ -116,17 +116,20 @@ LOCAL TRE_OpResult mv_curs_right_charwise(TRE_Buf* buf,
   if (chars_left_to_move >= 0) {
     // Movement stopped because the last line was reached, or because settings
     // prevent movement from wrapping to the next line.
-    if (chars_left_to_move > line.len) {
+    if (chars_left_to_move + 1 > line.len) {
       // Requested distance takes us past the end of the line.
+      logt("Move right charwise passes end of buffer, limiting to end of line.");
       buf->cursor_col = line.len - 1;
     } else {
       // The movement lands us somewhere inside the bounds of the last line.
+      logt("Move right charwise ends within last line.");
       buf->cursor_col = chars_left_to_move;
     }
   } else {
     // In normal movement (not at the end of the buffer), chars_left_to_move
     // ends up negative. In that case, its value tells us how far we have to
     // back up from the end of the current line to get to the correct position.
+    logt("Move right charwise ends before last line.");
     buf->cursor_col = line.len + chars_left_to_move;
   }
   buf->cursor_line = line;

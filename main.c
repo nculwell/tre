@@ -15,6 +15,15 @@ void run_editor(TRE_RT *rt) {
   }
 }
 
+/*
+LOCAL catch_signals() {
+  struct sigaction act, oact;
+  if (-1 == sigaction(SIGBRK, &act, &oact)) {
+    log_err("Unable to install signal handler(s): %s", strerror(errno));
+  }
+}
+*/
+
 void handle_input(TRE_RT *rt, int c) {
   if (c == KEY_F(12)) {
     exit(0);

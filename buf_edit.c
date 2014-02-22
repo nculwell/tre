@@ -62,6 +62,7 @@ void TRE_Buf_backspace(TRE_Buf *buf) {
     // one.
     int cur_line_len = buf->cursor_line.len;
     buf->cursor_line = scan_prev_line(buf, buf->cursor_line);
+    buf->cursor_col = buf->cursor_line.len - 1;
     buf->cursor_line.len += cur_line_len - 1;
     buf->n_lines--;
   } else {

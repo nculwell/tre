@@ -8,6 +8,7 @@
 #include <glib/gstdio.h>
 #include <limits.h>
 #include <ncurses.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
