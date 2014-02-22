@@ -24,7 +24,8 @@ TRE_Win *TRE_Win_new(int sz_y, int sz_x, int pos_y, int pos_x) {
 void TRE_Win_set_buf(TRE_Win *this, TRE_Buf *buf) {
   this->buf = buf;
   // TODO: Use a get cursor position function here instead of the gap.
-  int view_start_pos = TRE_Buf_get_cursor_offset(buf);
+  int view_start_pos = 0;
+  //int view_start_pos = TRE_Buf_get_cursor_offset(buf);
   // Back up the view start position to the start of the line with the cursor
   // in it (or to the beginning of the file, whichever comes first)
   while (view_start_pos > 0) {

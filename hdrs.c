@@ -1,7 +1,12 @@
+#define _XOPEN_SOURCE
+#define _XOPEN_SOURCE_EXTENDED
 #include <assert.h>
 #include <ctype.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <glib.h>
+#include <glib/gstdio.h>
+#include <limits.h>
 #include <ncurses.h>
 #include <stdio.h>
 #include <stdlib.h>
