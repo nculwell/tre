@@ -53,6 +53,12 @@ enum move_linewrap_style_t {
 #define TRE_BUFFER_GAP_SIZE TRE_BUFFER_BLOCK_SIZE
 #endif
 
+#define LOG_CURSOR_POSITION() \
+  logt("Cursor: (aff=%d) LC=%d,%d; line off=%d," \
+     " len=%d; gap start=%d", \
+      buf->col_affinity, buf->cursor_line.num, buf->cursor_col, \
+      buf->cursor_line.off, buf->cursor_line.len, buf->gap_start);
+
 // Move forward (positive) or backward (negative) in the buffer by a given
 // number of characters.
 // TODO: Parameterize line wraparound behavior.
@@ -75,12 +81,12 @@ void TRE_Buf_move(TRE_Buf* buf, int distance_chars) {
   // Scan the text to see where the cursor will end up.
   if (distance_chars > 0) {
     mv_curs_right_charwise(buf, distance_chars, linewrap_style);
-    TRE_Buf_move_gap(buf, buf->gap_start + distance_chars);
   }
   else if (distance_chars < 0) {
     mv_curs_left_charwise(buf, -distance_chars, linewrap_style);
   }
-  logt("Cursor position: %d, %d", buf->cursor_line, buf->cursor_col);
+  //logt("Cursor position: %d, %d", buf->cursor_line, buf->cursor_col);
+  LOG_CURSOR_POSITION();
 }
 
 LOCAL TRE_OpResult mv_curs_right_charwise(TRE_Buf* buf,
@@ -90,12 +96,13 @@ LOCAL TRE_OpResult mv_curs_right_charwise(TRE_Buf* buf,
   // subsequent lines simpler. This means we "back up" to the beginning by
   // adding the cursor column number to the number of chars to be moved.
   int chars_left_to_move = n_chars + buf->cursor_col;
-  int last_line_num = buf->n_lines + 1;
+  int last_line_num = buf->n_lines - 1;
   // Don't do any linewise movement if settings prevent it.
   if (linewrap_style != MOVE_LINEWRAP_NO) {
     // Count characters from the beginning of this line to the beginning of the
     // next, going until enough chars have been crossed to satisfy the move
     // distance.
+    logt("Moving right from line %d, last line = %d", line.num, last_line_num);
     while (line.num < last_line_num) {
       chars_left_to_move -= line.len;
       if (chars_left_to_move < 0) {
@@ -190,7 +197,7 @@ TRE_Line scan_prev_line(TRE_Buf* buf, TRE_Line from_line) {
     // Scan backward to find the next newline. It's not necessary to check for
     // hitting the start of the buffer because we've already stipulated that
     // this isn't line zero.
-    int pos = from_line.off;
+    int pos = from_line.off - 1;
     // Scanning works differently depending on whether we might encounter gap.
     if (pos < buf->gap_start) {
       // Scanning before the gap. Don't need to account for gap size.
@@ -268,33 +275,45 @@ void TRE_Buf_move_linewise(TRE_Buf* buf, int distance_lines) {
     return;
   }
   TRE_Line line = buf->cursor_line;
+  logt("Start move at line: num %d, off %d, len %d",
+      line.num, line.off, line.len);
   if (distance_lines > 0) { // moving forward/down
     int last_line = buf->n_lines - 1;
     for (int ln = distance_lines; ln > 0; ln--) {
+      logt("Moving one line down.");
       if (line.num == last_line) {
+        logt("Move prevented because this is the last line.");
         break;
       }
       line = scan_next_line(buf, line);
+      logt("Scanned next line: num %d, off %d, len %d",
+          line.num, line.off, line.len);
     }
   } else { // distance_lines is negative (moving backward)
     for (int ln = -distance_lines; ln > 0; ln--) {
+      logt("Moving one line up.");
       if (line.num == 0) {
+        logt("Move prevented because this is the first line.");
         break;
       }
       line = scan_prev_line(buf, line);
+      logt("Scanned prev line: num %d, off %d, len %d",
+          line.num, line.off, line.len);
     }
   }
   // Set the cursor column affinity if unset.
   if (buf->col_affinity != -1) {
+    logt("Setting col affinity to match cursor col (%d)", buf->cursor_col);
     buf->col_affinity = buf->cursor_col;
   }
   // Set the cursor position.
-  int cursor_col = buf->col_affinity < line.len
+  buf->cursor_col = buf->col_affinity < line.len
     ? buf->col_affinity
     : line.len - 1;
-  buf->cursor_col = cursor_col;
+  buf->cursor_line = line;
   // Move the buffer gap.
-  TRE_Buf_move_gap(buf, line.off + cursor_col);
+  TRE_Buf_move_gap(buf, line.off + buf->cursor_col);
+  LOG_CURSOR_POSITION();
 }
 
 // Clear the cursor column affinity. This should be done whenever the cursor
@@ -304,20 +323,6 @@ void TRE_Buf_clear_col_affinity(TRE_Buf* buf) {
     buf->col_affinity = -1;
   }
 }
-
-/*
-TRE_OpResult TRE_Buf_goto_line_and_col(TRE_Buf* buf, unsigned line, unsigned col) {
-  // Track the line and column position through the portion just read.
-  for (int i=0; i < n_read; i++) {
-    if ('\n' == *(buf->text.c + insert_pos + i)) {
-      buf->cursor_line++;
-      buf->cursor_col = 0;
-    } else {
-      buf->cursor_col++;
-    }
-  }
-}
-*/
 
 // Go to an absolute position in the buffer, expressed in bytes. (Ignoring the
 // space taken up by the gap.)
@@ -372,7 +377,6 @@ TRE_OpResult TRE_Buf_move_gap(TRE_Buf* buf, int absolute_pos) {
 // especially with the gap.
 void TRE_Buf_draw(TRE_Buf *buf, int winsz_y, int winsz_x,
     int view_start_pos, TRE_Win *win) {
-  logt("Trying to draw window");
   int pos = view_start_pos;
   int end = buf->text_len + buf->gap_len;
   unsigned cursor_x, cursor_y;

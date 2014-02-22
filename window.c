@@ -41,7 +41,7 @@ void TRE_Win_set_buf(TRE_Win *this, TRE_Buf *buf) {
 // buffer-related logic. Only buffer.c should be dealing with offsets and
 // especially with the gap.
 void TRE_Win_draw(TRE_Win *this) {
-  logt("Trying to draw window");
+  logt("Drawing window");
   int winsz_x, winsz_y;
   // Clear the old contents of the window
   wclear(this->win);
