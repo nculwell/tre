@@ -4,7 +4,6 @@ SHELL=/bin/sh
 CC=gcc
 WARNFLAGS=-pedantic -Wall -Wextra -Werror
 CFLAGS = -std=c99 $(WARNFLAGS) $(shell pkg-config --cflags glib-2.0)
-CFLAGS += -DHAVE_EPOLL
 LDFLAGS=
 LDLIBS=$(shell pkg-config --libs glib-2.0) -lncurses
 SOURCES=$(wildcard *.c)
