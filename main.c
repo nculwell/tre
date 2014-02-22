@@ -4,6 +4,7 @@
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
+
 TRE_Opts *init_opts() { return NULL; }
 
 void run_editor(TRE_RT *rt) {
@@ -33,11 +34,16 @@ void draw_statusbar(TRE_RT *rt) {
 
 int main(int argc, char *argv[]) {
   TRE_Opts *opts = init_opts(); /* TODO: add in main */
-  init_curses(); /* TODO: Make mode option-driven. */
+  if (!init_terminal()) { /* TODO: Make mode option-driven. */
+    log_err("Failed to initialize terminal.");
+    fprintf(stderr, "Failed to initialize terminal.");
+    return -1;
+  }
   TRE_RT *rt = TRE_RT_init(opts); /* TODO: add in rt (runs init scripts) */
   TRE_RT_load_buffer(rt, "tre.c");
   run_editor(rt);
   return 0;
 }
+
 #pragma GCC diagnostic pop
 

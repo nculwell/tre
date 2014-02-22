@@ -5,7 +5,7 @@ CC=gcc
 WARNFLAGS=-pedantic -Wall -Wextra -Werror
 CFLAGS = -std=c99 $(WARNFLAGS) $(shell pkg-config --cflags glib-2.0)
 LDFLAGS=
-LDLIBS=$(shell pkg-config --libs glib-2.0) -lncurses
+LDLIBS=$(shell pkg-config --libs glib-2.0) -lncurses libtermkey/.libs/libtermkey.a
 SOURCES=$(wildcard *.c)
 HEADERS=$(addprefix :mh_, $(addsuffix .h, $(basename $(SOURCES))))
 OBJECTS=$(SOURCES:.c=.o)
