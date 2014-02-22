@@ -9,22 +9,29 @@ typedef struct {
   char c;
 } TRE_Opts;
 
+typedef struct TRE_Line {
+  int num; // line number of this line
+  int off; // offset of first char in the line from start of file
+  int len; // length of line (including newline)
+} TRE_Line;
+
 typedef struct {
-  char *filename;
-  int buf_size;
-  int text_len;
-  int gap_start;
-  int gap_len;
-  int cursor_line; // cursor position, line
-  int cursor_col;  // cursor position, column
-  int n_lines;     // total number of lines in text
-  int encoding;    // determines char width
+  // The filename string will be freed when the buffer is destroyed.
+  char *filename;  // name of disk file for buffer (NULL if none)
   // This type supports other char types, but for now only char is used.
-  union {
+  union { // the actual text buffer, which can use different pointer types
     char *c;
     guint16 *wc;
     guint32 *wc32;
   } text;
+  int buf_size;    // space actually allocated for the buffer currently
+  int text_len;    // length of text in chars (excluding gap)
+  int gap_start;   // offset of the start of the gap
+  int gap_len;     // length of the gap
+  int n_lines;     // total number of lines in text
+  int encoding;    // determines char width
+  int cursor_col;  // cursor position, column
+  TRE_Line cursor_line; // position info about the line where the cursor is
 } TRE_Buf;
 
 // High byte is an encoding ID, low byte is the width (8, 16 or 32 bits).
@@ -59,7 +66,8 @@ TRE_Buf *TRE_Buf_new(const char *filename) {
   return buf;
 }
 
-// TODO: Save last file position.
+// TODO: Save/load last file position.
+// TODO: Strip CR chars from file as it loads.
 TRE_Buf *TRE_Buf_load(TRE_RT *rt, const char *filename) {
   struct stat fstat_buf;
   int fd = open(filename, O_RDONLY);
@@ -129,7 +137,24 @@ void TRE_Buf_insert_char(TRE_Buf *buf, char c) {
   buf->text.c[buf->gap_start++] = c;
   buf->gap_len--;
   buf->text_len++;
+  if (c == '\n') {
+    buf->cursor_col = 0;
+    buf->cursor_line++;
+  }
+  else {
+    buf->cursor_col++;
+  }
   check_gap(buf, 0);
+}
+
+// Delete the last character before the gap.
+void TRE_Buf_delete(TRE_Buf *buf) {
+  if (buf->gap_start == buf->text_len) {
+    log_info("Attempted to backspace at the end of the buffer.");
+    return;
+  }
+  buf->gap_len++;
+  buf->text_len--;
 }
 
 // Delete the last character before the gap.
@@ -137,6 +162,14 @@ void TRE_Buf_backspace(TRE_Buf *buf) {
   if (buf->gap_start == 0) {
     log_info("Attempted to backspace at the start of the buffer.");
     return;
+  }
+  int c = buf->text.c[buf->gap_start - 1];
+  if (c == '\n') {
+    buf->cursor_line--;
+    // TODO: Find cursor col
+  }
+  else {
+    buf->cursor_col--;
   }
   buf->gap_start--;
   buf->gap_len++;
@@ -297,6 +330,107 @@ LOCAL TRE_OpResult mv_curs_left_charwise(TRE_Buf* buf, int n_chars,
   return TRE_SUCC;
 }
 
+// Scan backward through the file far for a specified number of lines.  Returns
+// the position after moving back that many lines. Pos will be at the character
+// just before the previous line, which means it's on a newline character, or
+// at the beginning of the file it's at position -1 (a non-location that should
+// not actually be read). The output parameter n_lines_moved will return
+// containing the number of lines that were actually moved, which will be the
+// same as n_lines_to_move unless the beginning of the file was reached, in
+// which case it will be the number of newlines passed on the way to the
+// beginning of the file. (It follows that this value is only relevant if the
+// end position is -1.)
+// FIXME: It never makes sense to back up past the beginning of the file,
+// because are maintaining a row/col position so we know which line we are in.
+// If this is line 0, it's not necessary to scan the chars to know that no more
+// newlines will be seen before the beginning of the file.
+LOCAL int back_up_n_lines(TRE_Buf* buf, int n_lines_to_move, int *n_lines_moved) {
+  int pos = buf->gap_start;
+  int lines_left_to_move = n_lines_to_move;
+  while (lines_left_to_move > 0 && pos > 0) {
+    logt("Scanning line from %d", pos);
+    pos = find_line_precedent(buf, pos);
+    logt("Scan ended at %d", pos);
+    lines_left_to_move--;
+  }
+  // Figure the number of lines that were actually moved, which can be less
+  // than the number requsted if the beginning of the file was reached.
+  *n_lines_moved = n_lines_to_move - lines_left_to_move;
+  return pos;
+}
+
+LOCAL TRE_Line scan_prev_line(TRE_Buf* buf, TRE_Line from_line) {
+  TRE_Line prev_line;
+  assert(from_line.num > 0); // don't call if this is line zero
+  // Keeping track of the line number is straightforward.
+  prev_line.num = from_line - 1;
+  // Check if this is the first line.
+  if (prev_line.num == 0) {
+    // Don't scan line zero because we know there will be no newline.
+    prev_line.off = 0;
+    prev_line.len = from_line.off;
+  } else {
+    // Scan backward to find the next newline. It's not necessary to check for
+    // hitting the start of the buffer because we've already stipulated that
+    // this isn't line zero.
+    int pos = from_line.off - 1;
+    do {} while (buf->text.c[--pos] != '\n');
+    prev_line.off = pos + 1;
+    prev_line.len = from_line.off - prev_line.off;
+  }
+  return prev_line;
+}
+
+LOCAL TRE_Line scan_next_line(TRE_Buf* buf, TRE_Line from_line) {
+  TRE_Line next_line;
+  assert(from_line.num < buf->n_lines); // don't call if this is the last line
+  // Keeping track of the line number is straightforward.
+  next_line.num = from_line + 1;
+  // The next line offset is 1 past the end of the previous line.
+  next_line.off = from_line.off + from_line.len;
+  // Check if this is the last line.
+  if (next_line.num == buf->n_lines) {
+    // Don't scan last line because we know it ends at end of buffer.
+    next_line.len = buf->text_len - next_line.off;
+  } else {
+    // Scan forward to find the next newline. It's not necessary to check for
+    // hitting the end of the buffer because we've already stipulated that
+    // this isn't the last line.
+    int pos = next_line.off;
+    do {} while (buf->text.c[++pos] != '\n');
+    next_line.len = (pos + 1) - next_line.off;
+  }
+  return next_line;
+}
+
+// Move cursor backward (up) linewise.
+LOCAL TRE_OpResult mv_curs_up_linewise(TRE_Buf* buf, int distance_lines) {
+  int lines_left_to_move = -distance_lines;
+  int pos = buf->gap_start;
+  while (lines_left_to_move > 0) {
+    while (--pos >= 0) {
+      logt("Regressed one character.");
+      if (buf->text.c[pos] == '\n') {
+        logt("Reached newline.");
+        break;
+      }
+    }
+    if (pos < 0) {
+      pos++;
+      break;
+    }
+    buf->cursor_line--;
+    lines_left_to_move--;
+    logt("Regressed one line.");
+  }
+  // After moving up the requisite number of lines, search backward to find
+  // the beginning of the line, then set the correct column.
+  resolve_curs_col(buf, &pos);    
+  // Make the actual jump with the cursor.
+  TRE_Buf_move_gap(buf, pos);
+  return TRE_SUCC;
+}
+
 // Move forward (positive) or backward (negative) in the buffer by a given
 // number of lines.
 // TODO: Parameterize selection of the column to land on after moving.
@@ -352,7 +486,7 @@ LOCAL TRE_OpResult mv_curs_down_linewise(TRE_Buf* buf, int distance_lines) {
     buf->cursor_col -= cols_left_to_move;
   }
   else {
-    set_cursor_column(buf, &pos);
+    resolve_curs_col(buf, &pos);
   }
   // Make the actual jump with the cursor.
   TRE_Buf_move_gap(buf, pos - buf->gap_len);
@@ -381,7 +515,7 @@ LOCAL TRE_OpResult mv_curs_up_linewise(TRE_Buf* buf, int distance_lines) {
   }
   // After moving up the requisite number of lines, search backward to find
   // the beginning of the line, then set the correct column.
-  set_cursor_column(buf, &pos);    
+  resolve_curs_col(buf, &pos);    
   // Make the actual jump with the cursor.
   TRE_Buf_move_gap(buf, pos);
   return TRE_SUCC;
@@ -392,6 +526,9 @@ LOCAL TRE_OpResult mv_curs_up_linewise(TRE_Buf* buf, int distance_lines) {
 // character before the first in this line. Since this function scans backward
 // and doesn't check if it's passing the gap, it's only valid if called with a
 // position that precedes the gap.
+// FIXME: Don't back up when in line 0. Not sure if this should be handled by
+// short-circuiting the scan in this function, or by asserting that this
+// funciton shouldn't be called in that condition.
 LOCAL int find_line_precedent(TRE_Buf* buf, int pos) {
   logt("find_line_precedent: pos=%d; gap_start=%d", pos, buf->gap_start);
   assert(pos <= buf->gap_start); // function is only valid before the gap
@@ -406,10 +543,12 @@ LOCAL int find_line_precedent(TRE_Buf* buf, int pos) {
 // Based on a position in the file, scan back to the beginning of the line to
 // determine what column the cursor should be in to at that position. This
 // function assumes that gap_start is greater than or equal to pos.
-LOCAL TRE_OpResult set_cursor_column(TRE_Buf* buf, int *pos) {
-  if (*pos > buf->gap_start) {
-    log_err("Function set_cursor_column is only valid when pos <= gap_start.");
-    return TRE_FAIL;
+LOCAL TRE_OpResult resolve_curs_col(TRE_Buf* buf, int *pos) {
+  logt("resolve_curs_col: pos=%d; gap_start=%d", pos, buf->gap_start);
+  assert(pos <= buf->gap_start); // function is only valid before the gap
+  // If the cursor is on line 0 then there's no need to scan backward because
+  // the column position and the absolute position are the same..
+  if (0 == buf->cursor_line) {
   }
   int line_length = 0;
   while (--*pos >= 0) {
