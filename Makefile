@@ -9,6 +9,7 @@ LDLIBS=$(shell pkg-config --libs glib-2.0) -lncurses
 SOURCES=$(wildcard *.c)
 HEADERS=$(addprefix :mh_, $(addsuffix .h, $(basename $(SOURCES))))
 OBJECTS=$(SOURCES:.c=.o)
+SUBPROJECTS=libtermkey-0.17
 
 EXECUTABLE=tre
 
@@ -23,10 +24,12 @@ common: prebuild $(SOURCES) $(EXECUTABLE)
 prebuild:
 #	@echo --------------------------------------------------
 	@makeheaders $(join $(SOURCES), $(HEADERS))
+	-for f in $(SUBPROJECTS); do (cd "$$f" && $(MAKE) $(MFLAGS) ); done
 
 $(EXECUTABLE): $(OBJECTS)
 
 clean:
+	-for f in $(SUBPROJECTS); do (cd "$$f" && $(MAKE) $(MFLAGS) clean ); done
 	-rm -f *.h *.o
 
 distclean: clean
