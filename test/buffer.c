@@ -1,43 +1,66 @@
 #include <CUnit/CUnit.h>
 #include "../hdrs.c"
-#include "buf_main.h"
+#include "buffer.h"
 
-void buf_main_psuite() {
+#if INTERFACE
+struct test {
+  const char* description;
+  void (*test_func)();  
+};
+#endif
+
+struct test buffer_tests[] = {
+  { "create empty buffer", test_buffer_create },
+  { "load buffer from string", test_buffer_load_from_string },
+  { "empty buffer matches buffer loaded from empty string",
+    test_empty_buf_from_string_matches_new_buf },
+  { "move cursor right two spaces", test_move_cursor_right },
+  { "move cursor right to end of line", test_move_cursor_right_to_eol },
+  { "move cursor right past end of line (wrap to next line)",
+    test_move_cursor_right_wrap_to_next_line },
+  { "move cursor right to end of file", test_move_cursor_right_to_eof },
+  { "move cursor right past end of file 3 times",
+    test_move_cursor_right_past_eof_3_times },
+  { "move down through empty lines", test_move_down_through_empty_line },
+  { "move up through empty lines", test_move_up_through_empty_line }
+};
+
+void buffer_psuite() {
    /* add a suite to the registry */
-   CU_pSuite pSuite = CU_add_suite("Suite_1", NULL, NULL);
+   CU_pSuite pSuite = CU_add_suite("Buffer", NULL, NULL);
    if (NULL == pSuite) {
      die("Error adding test suite: ", CU_get_error_msg());
    }
    // Add tests in order that they will run.
    if (0
-       || NULL == CU_add_test(pSuite, "create empty buffer",
+       || !CU_add_test(pSuite, "create empty buffer",
          test_buffer_create)
-       || NULL == CU_add_test(pSuite, "load buffer from string",
+       || !CU_add_test(pSuite, "load buffer from string",
          test_buffer_load_from_string)
-       || NULL == CU_add_test(pSuite,
+       || !CU_add_test(pSuite,
          "empty buffer matches buffer loaded from empty string",
          test_empty_buf_from_string_matches_new_buf)
-       || NULL == CU_add_test(pSuite,
+       || !CU_add_test(pSuite,
          "move cursor right two spaces",
          test_move_cursor_right)
-       || NULL == CU_add_test(pSuite,
+       || !CU_add_test(pSuite,
          "move cursor right to end of line",
          test_move_cursor_right_to_eol)
-       || NULL == CU_add_test(pSuite,
+       || !CU_add_test(pSuite,
          "move cursor right past end of line (wrap to next line)",
          test_move_cursor_right_wrap_to_next_line)
-       || NULL == CU_add_test(pSuite,
+       || !CU_add_test(pSuite,
          "move cursor right to end of file",
          test_move_cursor_right_to_eof)
-       || NULL == CU_add_test(pSuite,
+       || !CU_add_test(pSuite,
          "move cursor right past end of file",
          test_move_cursor_right_past_eof)
-       || NULL == CU_add_test(pSuite,
+       || !CU_add_test(pSuite,
          "move cursor right past end of file 3 times",
          test_move_cursor_right_past_eof_3_times)
-       || NULL == CU_add_test(pSuite, "move down through empty lines",
+       || !CU_add_test(pSuite, "move down through empty lines",
          test_move_down_through_empty_line)
-       || NULL == CU_add_test(pSuite, "move up through empty lines",
+       || !CU_add_test(pSuite, "move up through empty lines",
          test_move_up_through_empty_line)
       )
    {

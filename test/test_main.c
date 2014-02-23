@@ -11,7 +11,7 @@ int main(int argc, char *argv[]) {
     die("Failed call to CU_initialize_registry: %s", CU_get_error_msg());
   }
 
-  buf_main_psuite();
+  buffer_psuite();
 
   /* Run all tests using the CUnit Basic interface */
   CU_basic_set_mode(CU_BRM_VERBOSE);
