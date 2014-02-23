@@ -12,7 +12,7 @@ typedef struct {
 #define TRE_MARK_FILE_NAME "marks"
 #define TRE_SAVED_POSITIONS_FILENAME "fpos"
 
-// Create a new (empty) buffer
+// Create a new (empty) buffer. Put a newline in it.
 TRE_Buf *TRE_Buf_new(const char *filename) {
   // TODO: It would be much better to attempt to save off data before aborting
   // the program here.
@@ -20,13 +20,84 @@ TRE_Buf *TRE_Buf_new(const char *filename) {
   buf->text.c = g_new(char, TRE_BUFFER_BLOCK_SIZE);
   buf->filename = g_strdup(filename);
   buf->buf_size = TRE_BUFFER_BLOCK_SIZE;
-  buf->text_len = 0;
   buf->gap_start = 0;
-  buf->gap_len = TRE_BUFFER_GAP_SIZE;
-  buf->n_lines = 0;
+  buf->gap_len = TRE_BUFFER_GAP_SIZE - 1;
+  buf->text.c[buf->gap_len] = '\n';
+  buf->text_len = 1;
+  buf->n_lines = 1;
+  buf->cursor_line.len = 1;
   buf->encoding = TRE_BUF_ENCODING_ASCII;
   buf->col_affinity = -1;
   return buf;
+}
+
+TRE_Buf* TRE_Buf_load_from_string(const char* src) {
+  // Scan the string once to find its size and count the lines.
+  TRE_Buf *buf = g_new0(TRE_Buf, 1);
+  buf->filename = NULL;
+  if (TRE_FAIL == scan_string(buf, src)) {
+    return TRE_FAIL;
+  }
+  int buf_size_blocks =
+    (buf->text_len + TRE_BUFFER_GAP_SIZE) / TRE_BUFFER_BLOCK_SIZE + 1;
+  int bufsize = buf_size_blocks * TRE_BUFFER_BLOCK_SIZE;
+  buf->buf_size = bufsize;
+  // Copy the string into the buffer.
+  // TODO: Remove CR characters.
+  buf->text.c = g_new(char, bufsize);
+  // Gap starts at offset 0.
+  buf->gap_start = 0;
+  buf->gap_len = TRE_BUFFER_GAP_SIZE;
+  // Handle the buffer copy a little differently depending on whether a newline
+  // needs to be added to the end.
+  int needs_newline_added = (src[buf->text_len - 1] != '\n');
+  if (needs_newline_added) {
+    buf->gap_len--;
+  }
+  memcpy(buf->text.c + buf->gap_len, src, buf->text_len);
+  if (needs_newline_added) {
+    *(buf->text.c + buf->gap_len + buf->text_len) = '\n';
+    buf->text_len++;
+    buf->n_lines++;
+  }
+  // If this is a single-line file and there was no terminating newline, then
+  // the line length will not have been set correctly. Set it now.
+  if (buf->cursor_line.len == 0) {
+    buf->cursor_line.len = buf->text_len;
+  }
+  // Set col affinity and encoding
+  buf->encoding = TRE_BUF_ENCODING_ASCII;
+  buf->col_affinity = -1;
+  return buf;
+}
+
+// This function scans the target string incrementally. In other words, it can
+// be called repeatedly to process more text.
+LOCAL TRE_OpResult scan_string(TRE_Buf* buf, const char* str) {
+  while (*str) {
+    if (*str == '\n') {
+      // When the end of a line is reached, check if that line is the one the
+      // cursor is supposed to be on, and if so, record the info about the end
+      // of the cursor line.
+      if (buf->cursor_line.num == buf->n_lines) {
+        buf->cursor_line.len = buf->text_len - buf->cursor_line.off + 1;
+        if (buf->cursor_col >= buf->cursor_line.len) {
+          buf->cursor_col = buf->cursor_line.len - 1;
+        }
+      }
+      // Increment the line count.
+      buf->n_lines++;
+      // At the beginning of a new line, check if it's the cursor line and if
+      // so then note its start point. (If the cursor is in line zero then its
+      // offset is already set to zero so nothing needs to be done.)
+      if (buf->cursor_line.num == buf->n_lines) {
+        buf->cursor_line.off = buf->text_len + 1;
+      }
+    }
+    buf->text_len++;
+    str++;
+  }
+  return TRE_SUCC;
 }
 
 // TODO: Save/load last file position.

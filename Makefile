@@ -5,10 +5,13 @@ CC=gcc
 WARNFLAGS=-pedantic -Wall -Wextra -Werror
 CFLAGS = -std=c99 $(WARNFLAGS) $(shell pkg-config --cflags glib-2.0)
 LDFLAGS=
-LDLIBS=$(shell pkg-config --libs glib-2.0) -lncurses libtermkey/.libs/libtermkey.a
+LDLIBS=$(shell pkg-config --libs glib-2.0) -lncurses -L/usr/lib /usr/lib/libcunit.a libtermkey/.libs/libtermkey.a
 SOURCES=$(wildcard *.c)
+TEST_SOURCES=$(wildcard test/*.c)
 HEADERS=$(addprefix :mh_, $(addsuffix .h, $(basename $(SOURCES))))
 OBJECTS=$(SOURCES:.c=.o)
+TEST_OBJECTS=$(TEST_SOURCES:.c=.o)
+TEST_RUNNER=test/test_main
 SUBPROJECTS=libtermkey
 
 EXECUTABLE=tre
@@ -18,15 +21,16 @@ all: common
 release: CFLAGS += -DNDEBUG
 release: common
 	strip $(EXECUTABLE)
-common: prebuild $(SOURCES) $(EXECUTABLE)
-#	@echo ---------- BUILD COMPLETED SUCCESSFULLY ----------
+common: prebuild $(SOURCES) $(TEST_SOURCES) $(EXECUTABLE) $(TEST_RUNNER)
+	@echo ---------- BUILD COMPLETED SUCCESSFULLY ----------
 
 prebuild:
-#	@echo --------------------------------------------------
-	@makeheaders $(join $(SOURCES), $(HEADERS))
+	@echo --------------------------------------------------
+	makeheaders $(join $(SOURCES), $(HEADERS)) $(TEST_SOURCES)
 	-for f in $(SUBPROJECTS); do (cd "$$f" && $(MAKE) $(MFLAGS) ); done
 
 $(EXECUTABLE): $(OBJECTS)
+$(TEST_RUNNER): $(TEST_OBJECTS) $(filter-out main.o, $(OBJECTS))
 
 clean:
 	-for f in $(SUBPROJECTS); do (cd "$$f" && $(MAKE) $(MFLAGS) clean ); done

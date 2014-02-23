@@ -154,7 +154,7 @@ LOCAL TRE_OpResult mv_curs_left_charwise(TRE_Buf* buf,
       if (chars_left_to_move <= 0) {
         break;
       }
-      line = scan_next_line(buf, line);
+      line = scan_prev_line(buf, line);
       chars_left_to_move -= line.len;
     }
   }
@@ -272,7 +272,6 @@ after_gap:
 
 // Move forward (positive) or backward (negative) in the buffer by a given
 // number of lines.
-// TODO: Parameterize selection of the column to land on after moving.
 void TRE_Buf_move_linewise(TRE_Buf* buf, int distance_lines) {
   logt("Moving line from (%d), dist %d", buf->gap_start, distance_lines);
   if (distance_lines == 0) {
@@ -283,28 +282,9 @@ void TRE_Buf_move_linewise(TRE_Buf* buf, int distance_lines) {
   logt("Start move at line: num %d, off %d, len %d",
       line.num, line.off, line.len);
   if (distance_lines > 0) { // moving forward/down
-    int last_line = buf->n_lines - 1;
-    for (int ln = distance_lines; ln > 0; ln--) {
-      logt("Moving one line down.");
-      if (line.num == last_line) {
-        logt("Move prevented because this is the last line.");
-        break;
-      }
-      line = scan_next_line(buf, line);
-      logt("Scanned next line: num %d, off %d, len %d",
-          line.num, line.off, line.len);
-    }
+    mv_curs_down_linewise(buf, distance_lines, line);
   } else { // distance_lines is negative (moving backward)
-    for (int ln = -distance_lines; ln > 0; ln--) {
-      logt("Moving one line up.");
-      if (line.num == 0) {
-        logt("Move prevented because this is the first line.");
-        break;
-      }
-      line = scan_prev_line(buf, line);
-      logt("Scanned prev line: num %d, off %d, len %d",
-          line.num, line.off, line.len);
-    }
+    mv_curs_up_linewise(buf, -distance_lines, line);
   }
   // Set the cursor column affinity if unset.
   if (buf->col_affinity == -1) {
@@ -319,6 +299,35 @@ void TRE_Buf_move_linewise(TRE_Buf* buf, int distance_lines) {
   // Move the buffer gap.
   TRE_Buf_move_gap(buf, line.off + buf->cursor_col);
   LOG_CURSOR_POSITION();
+}
+
+TRE_Line mv_curs_up_linewise(TRE_Buf* buf, int n_lines, TRE_Line line) {
+  for (int ln = n_lines; ln > 0; ln--) {
+    logt("Moving one line up.");
+    if (line.num == 0) {
+      logt("Move prevented because this is the first line.");
+      break;
+    }
+    line = scan_prev_line(buf, line);
+    logt("Scanned prev line: num %d, off %d, len %d",
+        line.num, line.off, line.len);
+  }
+  return line;
+}
+
+TRE_Line mv_curs_down_linewise(TRE_Buf* buf, int n_lines, TRE_Line line) {
+  int last_line = buf->n_lines - 1;
+  for (int ln = n_lines; ln > 0; ln--) {
+    logt("Moving one line down.");
+    if (line.num == last_line) {
+      logt("Move prevented because this is the last line.");
+      break;
+    }
+    line = scan_next_line(buf, line);
+    logt("Scanned next line: num %d, off %d, len %d",
+        line.num, line.off, line.len);
+  }
+  return line;
 }
 
 // Clear the cursor column affinity. This should be done whenever the cursor
