@@ -34,7 +34,7 @@ $(TEST_RUNNER): $(TEST_OBJECTS) $(filter-out main.o, $(OBJECTS))
 
 clean:
 	-for f in $(SUBPROJECTS); do (cd "$$f" && $(MAKE) $(MFLAGS) clean ); done
-	-rm -f *.h *.o
+	-rm -f *.h *.o test/*.o test/*.h
 
 distclean: clean
-	-rm -f $(EXECUTABLE) $(EXECUTABLE).pid *.log
+	-rm -f $(EXECUTABLE) $(EXECUTABLE).pid *.log $(TEST_RUNNER)

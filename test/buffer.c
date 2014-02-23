@@ -2,13 +2,6 @@
 #include "../hdrs.c"
 #include "buffer.h"
 
-#if INTERFACE
-struct test {
-  const char* description;
-  void (*test_func)();  
-};
-#endif
-
 struct test buffer_tests[] = {
   { "create empty buffer", test_buffer_create },
   { "load buffer from string", test_buffer_load_from_string },
@@ -25,48 +18,12 @@ struct test buffer_tests[] = {
   { "move up through empty lines", test_move_up_through_empty_line }
 };
 
-void buffer_psuite() {
-   /* add a suite to the registry */
-   CU_pSuite pSuite = CU_add_suite("Buffer", NULL, NULL);
-   if (NULL == pSuite) {
-     die("Error adding test suite: ", CU_get_error_msg());
-   }
-   // Add tests in order that they will run.
-   if (0
-       || !CU_add_test(pSuite, "create empty buffer",
-         test_buffer_create)
-       || !CU_add_test(pSuite, "load buffer from string",
-         test_buffer_load_from_string)
-       || !CU_add_test(pSuite,
-         "empty buffer matches buffer loaded from empty string",
-         test_empty_buf_from_string_matches_new_buf)
-       || !CU_add_test(pSuite,
-         "move cursor right two spaces",
-         test_move_cursor_right)
-       || !CU_add_test(pSuite,
-         "move cursor right to end of line",
-         test_move_cursor_right_to_eol)
-       || !CU_add_test(pSuite,
-         "move cursor right past end of line (wrap to next line)",
-         test_move_cursor_right_wrap_to_next_line)
-       || !CU_add_test(pSuite,
-         "move cursor right to end of file",
-         test_move_cursor_right_to_eof)
-       || !CU_add_test(pSuite,
-         "move cursor right past end of file",
-         test_move_cursor_right_past_eof)
-       || !CU_add_test(pSuite,
-         "move cursor right past end of file 3 times",
-         test_move_cursor_right_past_eof_3_times)
-       || !CU_add_test(pSuite, "move down through empty lines",
-         test_move_down_through_empty_line)
-       || !CU_add_test(pSuite, "move up through empty lines",
-         test_move_up_through_empty_line)
-      )
-   {
-     die("Error adding tests to registry: %s", CU_get_error_msg());
-   }
-}
+struct test_suite buffer_suite = {
+  .name = "Buffer",
+  .init = NULL,
+  .cleanup = NULL,
+  .tests = buffer_tests
+};
 
 void test_buffer_create() {
   static const char TEST_FILE_NAME[] = "test_file.txt";
@@ -222,7 +179,7 @@ void test_move_up_through_empty_line() {
 // Compare the gaps and text of two buffers to determine if they are identical.
 // Returns nonzero if they are identical, zero if not.
 // XXX: Include this in the actual program code?
-int compare_buffers(TRE_Buf* b1, TRE_Buf* b2) {
+LOCAL int compare_buffers(TRE_Buf* b1, TRE_Buf* b2) {
   // Stop if the gaps don't match because the text compare that follows won't
   // be valid in that case.
   if (b1->gap_start != b2->gap_start || b1->gap_len != b2->gap_len) {
