@@ -1,12 +1,16 @@
 #include "hdrs.c"
 #include "mh_log.h"
+#include <execinfo.h>
 
 #if INTERFACE
-#define LL_TRACE 1
-#define LL_DEBUG 2
-#define LL_INFO 3
-#define LL_WARN 4
-#define LL_ERROR 5
+typedef enum {
+  LL_TRACE = 1
+, LL_DEBUG = 2
+, LL_INFO = 3
+, LL_WARN = 4
+, LL_ERROR = 5
+, LL_FATAL = 6
+} TRE_LogLevel;
 #define logmsg(level, ...) \
   impl_log(level, __FILE__, __LINE__, __VA_ARGS__)
 #define logt(...) logmsg(LL_TRACE, __VA_ARGS__)
@@ -14,9 +18,14 @@
 #define log_info(...) logmsg(LL_INFO, __VA_ARGS__)
 #define log_warn(...) logmsg(LL_WARN, __VA_ARGS__)
 #define log_err(...) logmsg(LL_ERROR, __VA_ARGS__)
+#define log_fatal(...) \
+  (logmsg(LL_FATAL, __VA_ARGS__), \
+   fprintf(stderr, __VA_ARGS__), \
+   putc('\n', stderr), \
+   exit(-1))
 #endif
 
-int log_level =
+TRE_LogLevel log_level =
 #ifdef NDEBUG
   LL_INFO
 #else
@@ -51,7 +60,7 @@ void dummy_func()
   print_err("abc");
 }
 
-void impl_log(int level, const char *file, int line, const char *format, ...)
+void impl_log(TRE_LogLevel level, const char *file, int line, const char *format, ...)
 {
   static int attempted_open = 0;
   va_list args;
@@ -69,6 +78,15 @@ void impl_log(int level, const char *file, int line, const char *format, ...)
     atexit(close_log_file);
   }
   fprintf(log_file, "[%s][%s:%d] ", iso_time(time_fmt), file, line);
+  if (level == LL_FATAL) {
+    fprintf(log_file, "(FATAL) ");
+  }
+#ifndef NDEBUG
+  else if (level == LL_TRACE) {
+    char func[256];
+    fprintf(log_file, "(%s) ", current_function(func, 256));
+  }
+#endif
   va_start(args, format);
   vfprintf(log_file, format, args);
   va_end(args);
@@ -80,6 +98,40 @@ void impl_log(int level, const char *file, int line, const char *format, ...)
   fflush(log_file);
 }
 
+char* current_function(char* func, int len) {
+  void *btbuf[256];
+  int btsz = backtrace(btbuf, 256);
+  if (btsz > 0) {
+    char** btsym = backtrace_symbols(btbuf, btsz);
+    if (NULL != btsym) {
+      // Stack entries look like this: ./tre(TRE_Buf_load+0x1e6) [0x403e55]
+      char* func_nm = btsym[2];
+      // Find the left paren that precedes the function name
+      func_nm = strchr(func_nm, '(');
+      if (func_nm == NULL) {
+        return "?L";
+      } else {
+        func_nm++;
+      }
+      // Find the plus that follows the function name
+      char* right_edge = strchr(func_nm, '+');
+      if (right_edge == NULL) {
+        // return "ROOT";
+        return btsym[2];
+      }
+      *right_edge = 0;
+      strncpy(func, func_nm, len);
+      free(btsym);
+      return func;
+    } else {
+      return "?N";
+    }
+  } else {
+    return "?0";
+  }
+}
+
+/*
 void log_raw(const char *prefix_msg, const char *data, int len)
 {
 //#define LOG_RAW_BUF_SIZE 200
@@ -99,6 +151,7 @@ void log_raw(const char *prefix_msg, const char *data, int len)
   putc('"', stderr);
   putc('\n', stderr);
 }
+*/
 
 const char *iso_time(char time_fmt[20])
 {

@@ -33,7 +33,7 @@ void TRE_RT_err_msg(TRE_RT *rt, const char *msg)
 }
 
 // This should only be called once
-TRE_RT *TRE_RT_init(TRE_Opts *opts) {
+TRE_RT *TRE_RT_init(TRE_Opts* opts) {
   static TRE_RT rt;
   if (NULL != opts) {
     // Init with opts

@@ -26,18 +26,21 @@ int main(int argc, char *argv[]) {
 #pragma GCC diagnostic pop
 
 void add_suite(const struct test_suite* suite) {
+  fprintf(stderr, "Adding suite: %s\n", suite->name);
   CU_pSuite pSuite = CU_add_suite(suite->name, suite->init, suite->cleanup);
   if (NULL == pSuite) {
     die("Error adding test suite: ", CU_get_error_msg());
   }
-  for (int i=0; suite->tests[i].description == NULL; i++) {
-    if (!CU_add_test(pSuite,
-          suite->tests[i].description,
-          suite->tests[i].test_func)) {
+  struct test t;
+  int i = 0;
+  for (; t = suite->tests[i], t.description != NULL; i++) {
+    fprintf(stderr, "Adding test: %s\n", t.description);
+    if (!CU_add_test(pSuite, t.description, t.test_func)) {
       die("Error adding test suite %s to registry: %s", suite->name,
           CU_get_error_msg());
     }
   }
+  fprintf(stderr, "Tests added: %d\n", i);
 }
 
 int run_tests() {

@@ -5,10 +5,6 @@
 // #define LOG_DRAWING
 
 #if INTERFACE
-typedef struct {
-  char c;
-} TRE_Opts;
-
 typedef struct TRE_Line {
   int num; // line number of this line
   int off; // offset of first char in the line from start of file
@@ -239,6 +235,7 @@ TRE_Line scan_next_line(TRE_Buf* buf, TRE_Line from_line) {
   // Check if this is the last line.
   if (next_line.num == buf->n_lines) {
     // Don't scan last line because we know it ends at end of buffer.
+    logt("Last line, not scanning.");
     next_line.len = buf->text_len - next_line.off;
   } else {
     // Scan forward to find the next newline. It's not necessary to check for
@@ -282,9 +279,9 @@ void TRE_Buf_move_linewise(TRE_Buf* buf, int distance_lines) {
   logt("Start move at line: num %d, off %d, len %d",
       line.num, line.off, line.len);
   if (distance_lines > 0) { // moving forward/down
-    mv_curs_down_linewise(buf, distance_lines, line);
+    line = mv_curs_down_linewise(buf, distance_lines, line);
   } else { // distance_lines is negative (moving backward)
-    mv_curs_up_linewise(buf, -distance_lines, line);
+    line = mv_curs_up_linewise(buf, -distance_lines, line);
   }
   // Set the cursor column affinity if unset.
   if (buf->col_affinity == -1) {
@@ -450,4 +447,3 @@ void TRE_Buf_draw(TRE_Buf *buf, int winsz_y, int winsz_x,
 int TRE_Buf_get_cursor_offset(TRE_Buf* buf) {
   return buf->gap_start;
 }
-

@@ -15,7 +15,8 @@ struct test buffer_tests[] = {
   { "move cursor right past end of file 3 times",
     test_move_cursor_right_past_eof_3_times },
   { "move down through empty lines", test_move_down_through_empty_line },
-  { "move up through empty lines", test_move_up_through_empty_line }
+  { "move up through empty lines", test_move_up_through_empty_line },
+  { NULL, NULL }
 };
 
 struct test_suite buffer_suite = {
@@ -40,6 +41,7 @@ void test_buffer_create() {
   CU_ASSERT(buf->cursor_line.off == 0);
   CU_ASSERT(buf->cursor_line.len == 1);
   CU_ASSERT(buf->cursor_col == 0);
+  CU_ASSERT(gap_matches_cursor(buf));
 }
 
 void test_empty_buf_from_string_matches_new_buf() {
@@ -58,6 +60,8 @@ void test_empty_buf_from_string_matches_new_buf() {
   CU_ASSERT(bn->cursor_line.len == bs->cursor_line.len);
   CU_ASSERT(bn->cursor_col == bs->cursor_col);
   CU_ASSERT(compare_buffers(bn, bs));
+  CU_ASSERT(gap_matches_cursor(bn));
+  CU_ASSERT(gap_matches_cursor(bs));
 }
 
 void test_buffer_load_from_string() {
@@ -79,13 +83,16 @@ void test_buffer_load_from_string() {
       memcmp(TEST_STRING,
         buf->text.c + buf->gap_start + buf->gap_len,
         strlen(TEST_STRING)));
+  CU_ASSERT(gap_matches_cursor(buf));
 }
 
 void test_move_cursor_right() {
   static const char* TEST_STRING = "abc\ndef\nxyz\njkl\n";
   TRE_Buf* buf = TRE_Buf_load_from_string(TEST_STRING);
   TRE_Buf_move_charwise(buf, 1);
+  CU_ASSERT(gap_matches_cursor(buf));
   TRE_Buf_move_charwise(buf, 1);
+  CU_ASSERT(gap_matches_cursor(buf));
   CU_ASSERT(buf->cursor_line.num == 0);
   CU_ASSERT(buf->cursor_line.off == 0);
   CU_ASSERT(buf->cursor_line.len == 4);
@@ -97,6 +104,7 @@ void test_move_cursor_right_to_eol() {
   TRE_Buf* buf = TRE_Buf_load_from_string(TEST_STRING);
   for (int i=0; i < 3; i++) {
     TRE_Buf_move_charwise(buf, 1);
+    CU_ASSERT(gap_matches_cursor(buf));
   }
   CU_ASSERT(buf->cursor_line.num == 0);
   CU_ASSERT(buf->cursor_line.off == 0);
@@ -109,6 +117,7 @@ void test_move_cursor_right_wrap_to_next_line() {
   TRE_Buf* buf = TRE_Buf_load_from_string(TEST_STRING);
   for (int i=0; i < 4; i++) {
     TRE_Buf_move_charwise(buf, 1);
+    CU_ASSERT(gap_matches_cursor(buf));
   }
   CU_ASSERT(buf->cursor_line.num == 1);
   CU_ASSERT(buf->cursor_line.off == 4);
@@ -121,6 +130,7 @@ void test_move_cursor_right_to_eof() {
   TRE_Buf* buf = TRE_Buf_load_from_string(TEST_STRING);
   for (int i=0; i < 16; i++) {
     TRE_Buf_move_charwise(buf, 1);
+    CU_ASSERT(gap_matches_cursor(buf));
   }
   CU_ASSERT(buf->cursor_line.num == 3);
   CU_ASSERT(buf->cursor_line.off == 12);
@@ -133,6 +143,7 @@ void test_move_cursor_right_past_eof() {
   TRE_Buf* buf = TRE_Buf_load_from_string(TEST_STRING);
   for (int i=0; i < 17; i++) {
     TRE_Buf_move_charwise(buf, 1);
+    CU_ASSERT(gap_matches_cursor(buf));
   }
   CU_ASSERT(buf->cursor_line.num == 3);
   CU_ASSERT(buf->cursor_line.off == 12);
@@ -145,6 +156,7 @@ void test_move_cursor_right_past_eof_3_times() {
   TRE_Buf* buf = TRE_Buf_load_from_string(TEST_STRING);
   for (int i=0; i < 19; i++) {
     TRE_Buf_move_charwise(buf, 1);
+    CU_ASSERT(gap_matches_cursor(buf));
   }
   CU_ASSERT(buf->cursor_line.num == 3);
   CU_ASSERT(buf->cursor_line.off == 12);
@@ -156,7 +168,10 @@ void test_move_down_through_empty_line() {
   static const char test_file[] = "\n\n\n\n\n";
   TRE_Buf* buf = TRE_Buf_load_from_string(test_file);
   TRE_Buf_move_linewise(buf, 1);
+  CU_ASSERT(gap_matches_cursor(buf));
   TRE_Buf_move_linewise(buf, 1);
+  CU_ASSERT(gap_matches_cursor(buf));
+  exit(0);
   CU_ASSERT(buf->cursor_line.num == 2);
   CU_ASSERT(buf->cursor_line.off == 2);
   CU_ASSERT(buf->cursor_line.len == 1);
@@ -167,9 +182,13 @@ void test_move_up_through_empty_line() {
   static const char test_file[] = "\n\n\n\n\n";
   TRE_Buf* buf = TRE_Buf_load_from_string(test_file);
   TRE_Buf_move_linewise(buf, 1);
+  CU_ASSERT(gap_matches_cursor(buf));
   TRE_Buf_move_linewise(buf, 1);
+  CU_ASSERT(gap_matches_cursor(buf));
   TRE_Buf_move_linewise(buf, -1);
+  CU_ASSERT(gap_matches_cursor(buf));
   TRE_Buf_move_linewise(buf, -1);
+  CU_ASSERT(gap_matches_cursor(buf));
   CU_ASSERT(buf->cursor_line.num == 0);
   CU_ASSERT(buf->cursor_line.off == 0);
   CU_ASSERT(buf->cursor_line.len == 1);
@@ -198,3 +217,6 @@ LOCAL int compare_buffers(TRE_Buf* b1, TRE_Buf* b2) {
   return 1;
 }
 
+LOCAL int gap_matches_cursor(TRE_Buf* buf) {
+  return buf->gap_start == buf->cursor_line.off + buf->cursor_col;
+}
