@@ -66,11 +66,12 @@ void TRE_RT_update_screen(TRE_RT *this) {
     move(LINES - 1, i);
     addch(' ');
   }
+  TRE_Buf_OutputBuffer b;
   mvprintw(LINES - 1, 0,
-      "CURSOR: line %d, col %d, total lines %d",
-      this->win->buf->cursor_line.num, 
-      this->win->buf->cursor_col,
-      this->win->buf->n_lines);
+      "CURSOR: %s {lines: %d; text len: %d}",
+      TRE_Buf_cursor_to_string(this->win->buf, &b),
+      this->win->buf->n_lines,
+      this->win->buf->text_len);
   TRE_Win_set_focus(this->win);
   refresh();
 }

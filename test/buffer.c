@@ -48,7 +48,6 @@ void test_empty_buf_from_string_matches_new_buf() {
   TRE_Buf* bn = TRE_Buf_new(NULL);
   TRE_Buf* bs = TRE_Buf_load_from_string("");
   CU_ASSERT(bn->filename == bs->filename);
-  CU_ASSERT(bn->buf_size == bs->buf_size);
   CU_ASSERT(bn->text_len == bs->text_len);
   CU_ASSERT(bn->gap_start == bs->gap_start);
   CU_ASSERT(bn->gap_len == bs->gap_len);
@@ -171,7 +170,6 @@ void test_move_down_through_empty_line() {
   CU_ASSERT(gap_matches_cursor(buf));
   TRE_Buf_move_linewise(buf, 1);
   CU_ASSERT(gap_matches_cursor(buf));
-  exit(0);
   CU_ASSERT(buf->cursor_line.num == 2);
   CU_ASSERT(buf->cursor_line.off == 2);
   CU_ASSERT(buf->cursor_line.len == 1);
@@ -205,13 +203,13 @@ LOCAL int compare_buffers(TRE_Buf* b1, TRE_Buf* b2) {
     return 0;
   }
   // Compare the part of the buffer before the gap.
-  if (0 == memcmp(b1->text.c, b2->text.c, b1->gap_start)) {
+  if (0 != memcmp(b1->text.c, b2->text.c, b1->gap_start)) {
     return 0;
   }
   // Compare the part of the buffer after the gap.
   int offset = b1->gap_start + b1->gap_len;
   int len = b1->text_len - b1->gap_start;
-  if (0 == memcmp(b1->text.c + offset, b2->text.c + offset, len)) {
+  if (0 != memcmp(b1->text.c + offset, b2->text.c + offset, len)) {
     return 0;
   }
   return 1;

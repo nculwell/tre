@@ -117,6 +117,8 @@ LOCAL TRE_OpResult mv_curs_right_charwise(TRE_Buf* buf,
       line = scan_next_line(buf, line);
     }
   }
+  // Whether chars_left_to_move is positive or negative tells us how/why the
+  // loop was terminated.
   if (chars_left_to_move >= 0) {
     // Movement stopped because the last line was reached, or because settings
     // prevent movement from wrapping to the next line.
@@ -233,17 +235,6 @@ before_gap:
   return prev_line;
 }
 
-// Generate a string representing the contents of the current line and cursor
-// position fields for this buffer. Returns a pointer to this string (which is
-// stored in a buffer that the caller supplies).
-const char* TRE_Buf_cursor_to_string(TRE_Buf* buf,
-    TRE_Buf_OutputBuffer* strbuf) {
-  snprintf(strbuf->buf, TRE_BUF_OUTPUT_BUFFER_LEN,
-      "{num=%d, off=%d, len=%d, col=%d}", buf->cursor_line.num,
-      buf->cursor_line.off, buf->cursor_line.len, buf->cursor_col);
-  return strbuf->buf;
-}
-
 // Scan forward from the end of the given line to the end of the next line, and
 // return a line object containing the details about the line just scanned.
 TRE_Line scan_next_line(TRE_Buf* buf, TRE_Line from_line) {
@@ -276,7 +267,7 @@ after_gap:
       do {
         logt("(POST) Pos: %d / %d, Char: %s", pos - buf->gap_len, pos,
             char_to_str(buf->text.c[pos]));
-      } while (buf->text.c[++pos] != '\n');
+      } while (buf->text.c[pos++] != '\n');
       pos -= buf->gap_len;
     } else {
       // Scanning before gap, have to switch scanning mode if we reach it.
@@ -284,13 +275,12 @@ after_gap:
       int chars_until_gap = buf->gap_start - pos;
       do {
         logt("(PRE) Pos: %d, Char: %s", pos, char_to_str(buf->text.c[pos]));
-        ++pos;
-        --chars_until_gap;
         if (0 == chars_until_gap) {
           logt("Reached the gap.");
           goto after_gap; // goto considered awesome
         }
-      } while (buf->text.c[pos] != '\n');
+        --chars_until_gap;
+      } while (buf->text.c[pos++] != '\n');
     }
     logt("Done scanning. Pos: %d", pos);
     next_line.len = pos - next_line.off;
@@ -477,5 +467,26 @@ void TRE_Buf_draw(TRE_Buf *buf, int winsz_y, int winsz_x,
 
 int TRE_Buf_get_cursor_offset(TRE_Buf* buf) {
   return buf->gap_start;
+}
+
+// Generate a string representing the contents of the current line and cursor
+// position fields for this buffer. Returns a pointer to this string (which is
+// stored in a buffer that the caller supplies).
+const char* TRE_Buf_cursor_to_string(TRE_Buf* buf,
+    TRE_Buf_OutputBuffer* strbuf) {
+  snprintf(strbuf->buf, TRE_BUF_OUTPUT_BUFFER_LEN,
+      "{num=%d, off=%d, len=%d, col=%d}", buf->cursor_line.num,
+      buf->cursor_line.off, buf->cursor_line.len, buf->cursor_col);
+  return strbuf->buf;
+}
+
+// Generate a string representing the contents of the current line and cursor
+// position fields for this buffer. Returns a pointer to this string (which is
+// stored in a buffer that the caller supplies).
+const char* TRE_Buf_line_to_string(TRE_Line* line,
+    TRE_Buf_OutputBuffer* strbuf) {
+  snprintf(strbuf->buf, TRE_BUF_OUTPUT_BUFFER_LEN,
+      "{num=%d, off=%d, len=%d}", line->num, line->off, line->len);
+  return strbuf->buf;
 }
 
