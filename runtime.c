@@ -100,7 +100,7 @@ void TRE_RT_handle_input(TRE_RT *rt, int c) {
 
     case KEY_F(11):
       logt("Pressed F11.");
-      g_invoke("hello", 0, NULL);
+      g_invoke("help", 0, NULL);
       break;
 
     case KEY_BACKSPACE:

@@ -21,11 +21,26 @@ typedef struct {
 void run_editor(TRE_RT *rt) {
   refresh();
   while (1) {
-    TRE_RT_update_screen(rt);
-    int c = read_char();
-    SCM_TICK;
-    TRE_RT_handle_input(rt, c);
+    scm_c_catch(SCM_BOOL_T, run_loop, rt, error_handler, rt, NULL, NULL);
   }
+}
+
+SCM run_loop(void* void_data) {
+  TRE_RT* rt = (TRE_RT*)void_data;
+  TRE_RT_update_screen(rt);
+  int c = read_char();
+  SCM_TICK;
+  TRE_RT_handle_input(rt, c);
+  return SCM_BOOL_T;
+}
+
+SCM error_handler(void* void_data, SCM key, SCM args) {
+  // TRE_RT* rt = (TRE_RT*)void_data;
+  SCM key_str = scm_symbol_to_string(key);
+  char* key_cstr = scm_to_latin1_stringn(key_str, NULL);
+  log_err("Error caught: %s", key_cstr);
+  free(key_cstr);
+  return SCM_BOOL_F;
 }
 
 int main(int argc, char *argv[]) {
