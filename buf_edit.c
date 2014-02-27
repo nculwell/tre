@@ -3,6 +3,7 @@
 
 // Insert a character into the gap.
 void TRE_Buf_insert_char(TRE_Buf *buf, char c) {
+  logt("Inserting character: %s", char_to_str(c));
   // Editing clears the column affinity.
   TRE_Buf_clear_col_affinity(buf);
   // Put the character into the buffer at the start of the gap.

@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include <glib.h>
 #include <glib/gstdio.h>
+#include <libguile.h>
 #include <limits.h>
 #include <ncurses.h>
 #include <signal.h>
