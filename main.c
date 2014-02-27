@@ -35,21 +35,17 @@ SCM run_loop(void* void_data) {
   return SCM_BOOL_T;
 }
 
+#define ERROR_HANDLER_ERRBUF_LEN 1024
 SCM error_handler(void* void_data, SCM key, SCM args) {
   logt("Caught exception.");
   // TRE_RT* rt = (TRE_RT*)void_data;
-  char errmsg[1024];
-  strcpy(errmsg, "Error caught: ");
-  int offset = strlen(errmsg);
-  SCM key_str = scm_symbol_to_string(key);
-  offset += g_str_append(key_str, errmsg + offset, 1024 - offset);
-  if (offset < 1021) {
-    errmsg[offset++] = ':';
-    errmsg[offset++] = ' ';
-  }
-  offset += g_str_list_append(", ", args, errmsg + offset, 1024 - offset);
-  errmsg[offset] = 0;
-  log_err(errmsg);
+  char errbuf[ERROR_HANDLER_ERRBUF_LEN];
+  int buflen = ERROR_HANDLER_ERRBUF_LEN;
+  int offset = c_str_append(errbuf, buflen, "Error caught: ", -1);
+  offset += g_scm_write(errbuf + offset, buflen - offset, key);
+  offset += c_str_append(errbuf + offset, buflen - offset, " ", 1);
+  offset += g_scm_write(errbuf + offset, buflen - offset, args);
+  log_err(errbuf);
   return SCM_BOOL_F;
 }
 

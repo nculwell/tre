@@ -60,6 +60,9 @@ void dummy_func()
   print_err("abc");
 }
 
+// TODO: Figure out some way to get prototype for this to include
+// __attribute__((format(printf,4,5))) in a way that's compatible with
+// Makeheaders.
 void impl_log(TRE_LogLevel level, const char *file, int line, const char *format, ...)
 {
   static int attempted_open = 0;
