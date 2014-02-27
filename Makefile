@@ -2,11 +2,19 @@
 
 SHELL = /bin/sh
 CC = gcc
-WARNFLAGS = -pedantic -Wall -Wextra -Werror
-CFLAGS = -std=c99 $(WARNFLAGS) $(shell pkg-config --cflags glib-2.0)
+STD= -std=c99
+WARNFLAGS = -Wall -Wextra -Werror
+CFLAGS = $(STD) $(WARNFLAGS) -pedantic
+CFLAGS += $(shell pkg-config --cflags glib-2.0)
+GUILE_CFLAGS = $(STD) $(WARNFLAGS)
 LDFLAGS =
-LDLIBS = $(shell pkg-config --libs glib-2.0) -lncurses -L/usr/lib
-LDLIBS += /usr/lib/libcunit.a libtermkey/.libs/libtermkey.a
+LDLIBS =
+LDLIBS += $(shell pkg-config --libs glib-2.0)
+LDLIBS += $(shell pkg-config --libs guile-2.0)
+LDLIBS += -lncurses
+#LDLIBS += -L/usr/lib
+LDLIBS += /usr/lib/libcunit.a
+LDLIBS += libtermkey/.libs/libtermkey.a
 SOURCES = $(wildcard *.c)
 TEST_SOURCES = $(wildcard test/*.c)
 HEADERS = $(addprefix :mh_, $(addsuffix .h, $(basename $(SOURCES))))
@@ -37,9 +45,18 @@ prebuild:
 $(EXECUTABLE): $(OBJECTS)
 $(TEST_RUNNER): $(TEST_OBJECTS) $(filter-out main.o, $(OBJECTS))
 
+# Special rules to compile with Guile. Guile uses a void cast that ISO C
+# objects to, which prevents use of the -pedantic flag.
+snarf_g_funcs.x: g_funcs.c
+	guile-snarf $(shell pkg-config --cflags-only-I guile-2.0) -o $@ $<
+g_interop.o: g_interop.c snarf_g_funcs.x
+	$(CC) $(GUILE_CFLAGS) $(shell pkg-config --cflags guile-2.0) -c -o $@ $<
+g_funcs.o: g_funcs.c
+	$(CC) $(CFLAGS) $(shell pkg-config --cflags guile-2.0) -c -o $@ $<
+
 clean:
 	-for f in $(SUBPROJECTS); do (cd "$$f" && $(MAKE) $(MFLAGS) clean ); done
-	-rm -f *.h *.o test/*.o test/*.h
+	-rm -f *.h *.o *.x test/*.o test/*.h
 
 distclean: clean
 	-rm -f $(EXECUTABLE) $(EXECUTABLE).pid *.log $(TEST_RUNNER)

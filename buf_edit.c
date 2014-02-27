@@ -27,6 +27,18 @@ void TRE_Buf_insert_char(TRE_Buf *buf, char c) {
   check_gap(buf, 0);
 }
 
+// Insert an entire string into the gap.
+// FIXME: This could be more efficient. Currently it just adds a character at a
+// time. It should add chars all in one bunch. However, the current
+// implementation is easy to get correct so it's OK for now.
+void TRE_Buf_insert_string(TRE_Buf* buf, const char* str) {
+  int i = 0;
+  int c;
+  while ((c = str[i++])) {
+    TRE_Buf_insert_char(buf, c);
+  }
+}
+
 // Delete the first character after the gap.
 void TRE_Buf_delete(TRE_Buf *buf) {
   // Editing clears the column affinity.
