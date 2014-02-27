@@ -1,3 +1,6 @@
+// NOTE: Don't create any global variables in this file. This file is not
+// linked with the test runner, so if there are references to anything defined
+// here then it will break the build.
 
 #include "hdrs.c"
 #include "mh_main.h"
@@ -62,6 +65,7 @@ void inner_main(void* data, int argc, char **argv) {
     exit(-1);
   }
   TRE_RT* rt = TRE_RT_init(&opts); /* TODO: add in rt (runs init scripts) */
+  global_rt = rt;
   TRE_RT_load_buffer(rt, "tre.c");
   g_init_primitives();
   scm_c_catch(SCM_BOOL_T, run_editor, rt, error_handler, rt, NULL, NULL);

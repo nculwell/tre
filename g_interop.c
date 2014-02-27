@@ -3,6 +3,7 @@
 #include <libguile.h>
 #include "mh_g_interop.h"
 
+#if INTERFACE
 struct guile_buf {
   TRE_Buf* c_buf;
 };
@@ -10,18 +11,13 @@ struct guile_buf {
 struct guile_win {
   TRE_Win* c_win;
 };
+#endif
 
 scm_t_bits guile_buf_tag;
 scm_t_bits guile_win_tag;
 
 SCM g_proc_scm_to_string_display;
 SCM g_proc_scm_to_string_write;
-
-TRE_Buf* scm_to_buf(SCM _buf) {
-  scm_assert_smob_type(guile_buf_tag, _buf);
-  struct guile_buf* g_buf = (struct guile_buf*)SCM_SMOB_OBJECT(_buf);
-  return g_buf->c_buf;
-}
 
 LOCAL SCM g_lookup_proc(const char* pname) {
   SCM psym = scm_c_lookup(pname);

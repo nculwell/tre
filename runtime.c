@@ -25,6 +25,11 @@ enum TRE_OpResult {
 }
 #endif
 
+// Global reference to rt is needed so that it can be accessible to Guile
+// functions. (This can't be in main.c because main.c isn't linked with the
+// test runner and the dangling reference breaks the build.)
+TRE_RT* global_rt;
+
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
 void TRE_RT_err_msg(TRE_RT *rt, const char *msg)
@@ -88,8 +93,14 @@ void TRE_RT_arrow_key(TRE_RT *this, int key) {
   TRE_Win_arrow_key(this->win, key);
 }
 
+#define KEY_CTRL(A) ((A)-64)
+
 void TRE_RT_handle_input(TRE_RT *rt, int c) {
   switch (c) {
+
+    case KEY_CTRL('K'):
+      g_invoke("del-to-eol", 0, NULL);
+      break;
 
     case KEY_F(5):
       logt("KEY: EXECUTE");
@@ -105,6 +116,10 @@ void TRE_RT_handle_input(TRE_RT *rt, int c) {
 
     case KEY_BACKSPACE:
       TRE_RT_backspace(rt);
+      break;
+
+    case KEY_DC: // delete
+      TRE_Buf_delete(rt->win->buf);
       break;
 
     case KEY_LEFT:

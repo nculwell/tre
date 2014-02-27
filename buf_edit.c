@@ -109,3 +109,8 @@ LOCAL void check_gap(TRE_Buf *buf, int extra_space) {
     }
   }
 }
+
+int TRE_Buf_read_char_at_cursor(TRE_Buf* buf) {
+  return buf->text.c[buf->gap_start + buf->gap_len];
+}
+
