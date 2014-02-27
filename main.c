@@ -18,7 +18,8 @@ typedef struct {
 } TRE_Opts;
 #endif
 
-void run_editor(TRE_RT *rt) {
+SCM run_editor(void* void_data) {
+  TRE_RT* rt = (TRE_RT*)void_data;
   refresh();
   while (1) {
     scm_c_catch(SCM_BOOL_T, run_loop, rt, error_handler, rt, NULL, NULL);
@@ -35,11 +36,20 @@ SCM run_loop(void* void_data) {
 }
 
 SCM error_handler(void* void_data, SCM key, SCM args) {
+  logt("Caught exception.");
   // TRE_RT* rt = (TRE_RT*)void_data;
+  char errmsg[1024];
+  strcpy(errmsg, "Error caught: ");
+  int offset = strlen(errmsg);
   SCM key_str = scm_symbol_to_string(key);
-  char* key_cstr = scm_to_latin1_stringn(key_str, NULL);
-  log_err("Error caught: %s", key_cstr);
-  free(key_cstr);
+  offset += g_str_append(key_str, errmsg + offset, 1024 - offset);
+  if (offset < 1021) {
+    errmsg[offset++] = ':';
+    errmsg[offset++] = ' ';
+  }
+  offset += g_str_list_append(", ", args, errmsg + offset, 1024 - offset);
+  errmsg[offset] = 0;
+  log_err(errmsg);
   return SCM_BOOL_F;
 }
 
@@ -58,7 +68,8 @@ void inner_main(void* data, int argc, char **argv) {
   TRE_RT* rt = TRE_RT_init(&opts); /* TODO: add in rt (runs init scripts) */
   TRE_RT_load_buffer(rt, "tre.c");
   g_init_primitives();
-  run_editor(rt);
+  scm_c_catch(SCM_BOOL_T, run_editor, rt, error_handler, rt, NULL, NULL);
+  // run_editor(rt);
 }
 
 #pragma GCC diagnostic pop

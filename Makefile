@@ -28,7 +28,7 @@ SUBPROJECTS = libtermkey
 
 EXECUTABLE=tre
 
-all: CFLAGS += -g
+all: BASE_CFLAGS += -g
 all: LDFLAGS += -rdynamic
 all: MHFLAGS += -L
 all: common
