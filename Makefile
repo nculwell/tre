@@ -4,9 +4,11 @@ SHELL = /bin/sh
 CC = gcc
 STD= -std=c99
 WARNFLAGS = -Wall -Wextra -Werror
+INC_GLIB = $(shell pkg-config --cflags-only-I glib-2.0)
 CFLAGS = $(STD) $(WARNFLAGS) -pedantic
 CFLAGS += $(shell pkg-config --cflags glib-2.0)
 GUILE_CFLAGS = $(STD) $(WARNFLAGS)
+GUILE_CFLAGS += $(shell pkg-config --cflags glib-2.0)
 LDFLAGS =
 LDLIBS =
 LDLIBS += $(shell pkg-config --libs glib-2.0)
@@ -47,12 +49,12 @@ $(TEST_RUNNER): $(TEST_OBJECTS) $(filter-out main.o, $(OBJECTS))
 
 # Special rules to compile with Guile. Guile uses a void cast that ISO C
 # objects to, which prevents use of the -pedantic flag.
-snarf_g_funcs.x: g_funcs.c
-	guile-snarf $(shell pkg-config --cflags-only-I guile-2.0) -o $@ $<
-g_interop.o: g_interop.c snarf_g_funcs.x
+#snarf_g_funcs.x: g_funcs.c
+#	guile-snarf $(INC_GLIB) $(shell pkg-config --cflags-only-I guile-2.0) -o $@ $<
+g_interop.o: g_interop.c
 	$(CC) $(GUILE_CFLAGS) $(shell pkg-config --cflags guile-2.0) -c -o $@ $<
 g_funcs.o: g_funcs.c
-	$(CC) $(CFLAGS) $(shell pkg-config --cflags guile-2.0) -c -o $@ $<
+	$(CC) $(GUILE_CFLAGS) $(shell pkg-config --cflags guile-2.0) -c -o $@ $<
 
 clean:
 	-for f in $(SUBPROJECTS); do (cd "$$f" && $(MAKE) $(MFLAGS) clean ); done
