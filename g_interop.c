@@ -121,30 +121,30 @@ int g_str_list_append(const char* delim, SCM str_list, char* buffer,
 }
 
 SCM g_scm_to_string_display(SCM value) {
-  logt("Converting Scheme value to string using display.");
+  //logt("Converting Scheme value to string using display.");
   return g_scm_to_string_x(value, g_proc_scm_to_string_display);
 }
 
 SCM g_scm_to_string_write(SCM value) {
-  logt("Converting Scheme value to string using write.");
+  //logt("Converting Scheme value to string using write.");
   return g_scm_to_string_x(value, g_proc_scm_to_string_write);
 }
 
 SCM g_scm_to_string_x(SCM value, SCM convert_func) {
   // Check if this is already a string, and if so, return it unchanged.
   if (scm_is_string(value)) {
-    logt("Value is already a string.");
+    //logt("Value is already a string.");
     return value;
   } else {
     // Convert to a string and return. This calls a Scheme procedure (one of
     // our builtins) that does the conversion.
-    logt("Calling conversion function.");
+    //logt("Calling conversion function.");
     SCM str = scm_call_1(convert_func, value);
     if (scm_is_string(str)) {
-      logt("Retrieved a string.");
+      //logt("Retrieved a string.");
       return str;
     } else {
-      log_err("Failed to convert value to string.");
+      //log_err("Failed to convert value to string.");
       return SCM_BOOL_F;
     }
   }
