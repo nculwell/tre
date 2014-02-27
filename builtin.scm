@@ -1,6 +1,6 @@
 
 (define (insert-string buf s)
-  (string-for-each (lambda (c) (insert-char buf c)) s))
+  (string-for-each (lambda (c) (insert-char! buf c)) s))
 
 (define (help)
   (insert-string (current-buffer) "help"))
@@ -18,15 +18,20 @@
 (define (char-at-cursor-to-upper)
   (let* ((b (current-buffer))
          (c (read-char-at-cursor b)))
-    (delete-char-at-cursor b)
-    (insert-char b c)))
+    (delete-char-at-cursor! b)
+    (insert-char! b c)))
 
+; Emacs-style kill-to-end-of-line function.
 (define (del-to-eol)
   (let ((b (current-buffer)))
-    (let more ()
-      (let ((c (read-char-at-cursor b)))
-        (if (not (eq? c #\newline))
-          (begin
-            (delete-char-at-cursor b)
-            (more)))))))
+    (let ((first-char (read-char-at-cursor b)))
+      ; If the cursor begins at the newline, delete it. Otherwise, delete up to
+      ; but not including the newline.
+      (if (eq? first-char #\newline)
+        (delete-char-at-cursor! b)
+        (let keep-deleting ((c first-char))
+          (if (not (eq? c #\newline))
+            (begin
+              (delete-char-at-cursor! b)
+              (keep-deleting (read-char-at-cursor b)))))))))
 

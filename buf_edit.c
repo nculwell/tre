@@ -44,7 +44,10 @@ void TRE_Buf_insert_string(TRE_Buf* buf, const char* str) {
 void TRE_Buf_delete(TRE_Buf *buf) {
   // Editing clears the column affinity.
   TRE_Buf_clear_col_affinity(buf);
-  if (buf->gap_start == buf->text_len) {
+  // TRE_Buf_OutputBuffer ob;
+  // logt("Deleting at: gap_start=%d, text_len=%d, cursor=%s",
+  //     buf->gap_start, buf->text_len, TRE_Buf_cursor_to_string(buf, &ob));
+  if (buf->gap_start + 1 == buf->text_len) {
     log_info("Attempted to delete at the end of the buffer.");
     return;
   }
