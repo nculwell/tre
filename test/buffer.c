@@ -16,6 +16,9 @@ struct test buffer_tests[] = {
     test_move_cursor_right_past_eof_3_times },
   { "move down through empty lines", test_move_down_through_empty_line },
   { "move up through empty lines", test_move_up_through_empty_line },
+  { "delete at end of buffer", test_delete_at_end_of_buffer },
+  { "backspace at start of buffer", test_backspace_at_start_of_buffer },
+  { "backspace at start of line", test_backspace_at_start_of_line },
   { NULL, NULL }
 };
 
@@ -191,6 +194,68 @@ void test_move_up_through_empty_line() {
   CU_ASSERT(buf->cursor_line.off == 0);
   CU_ASSERT(buf->cursor_line.len == 1);
   CU_ASSERT(buf->cursor_col == 0);
+}
+
+void test_backspace_at_start_of_buffer() {
+  static const char test_file[] = "\n";
+  TRE_Buf* buf = TRE_Buf_load_from_string(test_file);
+  CU_ASSERT(buf->text_len == 1);
+  TRE_Buf_backspace(buf);
+  CU_ASSERT(gap_matches_cursor(buf));
+  CU_ASSERT(buf->text_len == 1);
+  CU_ASSERT(buf->gap_start == 0);
+}
+
+void test_delete_at_end_of_buffer() {
+  static const char test_file[] = "\n";
+  TRE_Buf* buf = TRE_Buf_load_from_string(test_file);
+  CU_ASSERT(buf->text_len == 1);
+  TRE_Buf_delete(buf);
+  CU_ASSERT(gap_matches_cursor(buf));
+  CU_ASSERT(buf->text_len == 1);
+}
+
+void test_backspace_at_start_of_line() {
+  static const char test_file[] = "abc\ndef\n";
+  TRE_Buf* buf = TRE_Buf_load_from_string(test_file);
+  CU_ASSERT(buf->text_len == 8);
+  CU_ASSERT(buf->n_lines == 2);
+  TRE_Buf_move_linewise(buf, 1);
+  CU_ASSERT(gap_matches_cursor(buf));
+  CU_ASSERT(buf->cursor_line.num == 1);
+  CU_ASSERT(buf->cursor_line.off == 4);
+  CU_ASSERT(buf->cursor_line.len == 4);
+  CU_ASSERT(buf->cursor_col == 0);
+  TRE_Buf_backspace(buf);
+  CU_ASSERT(gap_matches_cursor(buf));
+  CU_ASSERT(buf->text_len == 7);
+  CU_ASSERT(buf->cursor_line.num == 0);
+  CU_ASSERT(buf->cursor_line.off == 0);
+  CU_ASSERT(buf->cursor_line.len == 7);
+  CU_ASSERT(buf->cursor_col == 3);
+  CU_ASSERT(buf->n_lines == 1);
+}
+
+void test_delete_at_end_of_line() {
+  static const char test_file[] = "abc\ndef\n";
+  TRE_Buf* buf = TRE_Buf_load_from_string(test_file);
+  CU_ASSERT(buf->text_len == 8);
+  CU_ASSERT(buf->n_lines == 2);
+  TRE_Buf_move_linewise(buf, 1);
+  CU_ASSERT(gap_matches_cursor(buf));
+  TRE_Buf_move_charwise(buf, -1);
+  CU_ASSERT(buf->cursor_line.num == 0);
+  CU_ASSERT(buf->cursor_line.off == 0);
+  CU_ASSERT(buf->cursor_line.len == 4);
+  CU_ASSERT(buf->cursor_col == 3);
+  TRE_Buf_delete(buf);
+  CU_ASSERT(gap_matches_cursor(buf));
+  CU_ASSERT(buf->text_len == 7);
+  CU_ASSERT(buf->cursor_line.num == 0);
+  CU_ASSERT(buf->cursor_line.off == 0);
+  CU_ASSERT(buf->cursor_line.len == 7);
+  CU_ASSERT(buf->cursor_col == 3);
+  CU_ASSERT(buf->n_lines == 1);
 }
 
 // Compare the gaps and text of two buffers to determine if they are identical.

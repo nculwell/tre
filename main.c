@@ -46,8 +46,13 @@ SCM error_handler(void* void_data, SCM key, SCM args) {
   int buflen = ERROR_HANDLER_ERRBUF_LEN;
   int offset = c_str_append(errbuf, buflen, "Error caught: ", -1);
   offset += g_scm_write(errbuf + offset, buflen - offset, key);
-  offset += c_str_append(errbuf + offset, buflen - offset, " ", 1);
+  offset += c_str_append(errbuf + offset, buflen - offset, " - ", 1);
   offset += g_scm_write(errbuf + offset, buflen - offset, args);
+  log_err(errbuf);
+  logt("format-apply");
+  SCM msg = scm_call_1(g_proc_format_apply, args);
+  logt("error message");
+  g_str_append(errbuf, buflen, msg);
   log_err(errbuf);
   return SCM_BOOL_F;
 }

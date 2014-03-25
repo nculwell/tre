@@ -39,7 +39,7 @@ LOCAL SCM g_insert_char(SCM _buf, SCM _char) {
     TRE_Buf_insert_char(buf, c);
     //logt("Char inserted successfully.");
   }
-  return SCM_BOOL_F;
+  return SCM_UNSPECIFIED;
 }
 
 LOCAL SCM g_read_char(SCM _buf) {
@@ -56,6 +56,6 @@ LOCAL SCM g_delete_char(SCM _buf) {
   TRE_Buf* buf = scm_to_buf(_buf);
   //logt("Retrieved buf pointer.");
   TRE_Buf_delete(buf);
-  return SCM_BOOL_F;
+  return SCM_UNSPECIFIED;
 }
 

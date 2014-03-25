@@ -67,6 +67,7 @@ enum move_linewrap_style_t {
 // number of characters.
 // TODO: Parameterize line wraparound behavior.
 void TRE_Buf_move_charwise(TRE_Buf* buf, int distance_chars) {
+  assert(buf != NULL);
   const enum move_linewrap_style_t linewrap_style = MOVE_LINEWRAP_YES;
   // Sideward movement clears the column affinity.
   TRE_Buf_clear_col_affinity(buf);

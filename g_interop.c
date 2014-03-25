@@ -18,6 +18,7 @@ scm_t_bits guile_win_tag;
 
 SCM g_proc_scm_to_string_display;
 SCM g_proc_scm_to_string_write;
+SCM g_proc_format_apply;
 
 LOCAL SCM g_lookup_proc(const char* pname) {
   SCM psym = scm_c_lookup(pname);
@@ -42,8 +43,11 @@ void g_init_primitives() {
   } else {
     logt("Loaded Scheme builtins.");
   }
+  logt("Registering Scheme functions.");
   g_proc_scm_to_string_display = g_lookup_proc("value-to-string");
   g_proc_scm_to_string_write = g_lookup_proc("value-to-string-write");
+  g_proc_format_apply = g_lookup_proc("format-apply");
+  logt("Done registering Scheme functions.");
 }
 
 SCM g_invoke(const char* func_name, int n_args, SCM *args) {

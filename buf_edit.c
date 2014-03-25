@@ -4,6 +4,7 @@
 // Insert a character into the gap.
 void TRE_Buf_insert_char(TRE_Buf *buf, char c) {
   logt("Inserting character: %s", char_to_str(c));
+  assert(buf != NULL);
   // Editing clears the column affinity.
   TRE_Buf_clear_col_affinity(buf);
   // Put the character into the buffer at the start of the gap.
@@ -33,6 +34,7 @@ void TRE_Buf_insert_char(TRE_Buf *buf, char c) {
 // time. It should add chars all in one bunch. However, the current
 // implementation is easy to get correct so it's OK for now.
 void TRE_Buf_insert_string(TRE_Buf* buf, const char* str) {
+  assert(str != NULL);
   int i = 0;
   int c;
   while ((c = str[i++])) {
@@ -105,7 +107,7 @@ LOCAL void check_gap(TRE_Buf *buf, int extra_space) {
     if (buf->gap_start < buf->text_len) {
       // Gap is before the end of the buffer, so the portion after the gap
       // needs to be relocated to enlarge the gap. (If the gap is at the end of
-      // the buffer then nothing else needs to be done.
+      // the buffer then nothing else needs to be done.)
       memmove(buf->text.c + buf->gap_start + buf->gap_len,
           buf->text.c + buf->gap_start,
           buf->text_len - buf->gap_start);

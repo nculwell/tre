@@ -2,7 +2,7 @@
 (define (insert-string buf s)
   (string-for-each (lambda (c) (insert-char! buf c)) s))
 
-(define (help)
+(define (help a)
   (insert-string (current-buffer) "help"))
 
 (define (value-to-string v)
@@ -34,4 +34,7 @@
             (begin
               (delete-char-at-cursor! b)
               (keep-deleting (read-char-at-cursor b)))))))))
+
+(define (format-apply args)
+  (apply format args))
 
