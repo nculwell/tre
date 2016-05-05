@@ -1,5 +1,7 @@
 
 #include "hdrs.c"
+
+/*
 #include "libtermkey/termkey.h"
 #include "mh_curses.h"
 
@@ -17,7 +19,7 @@ TRE_OpResult init_terminal(void)
   raw();
   keypad(stdscr, TRUE);
   noecho();
-  /* TODO: Set up window(s) */
+  // TODO: Set up window(s)
   atexit(cleanup);
   return TRE_SUCC;
 }
@@ -87,4 +89,6 @@ int read_char(void)
   }
 }
 #endif
+*/
+
 
