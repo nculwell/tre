@@ -72,6 +72,7 @@ More buffer methods to consider:
 
 Get buffer length
 Get/set selection, jump to opposite end of selection, select all, clear select
+Multiple selection
 Marks?
 Read-only status
 Get line length
@@ -112,6 +113,10 @@ Indent/unindent
 Search
 Line split, join, wrap
 Move by word
+Brace matching
+Move by word part (capitalizion change) -- for Pascal case/camel case
+StutteredPageUp
+  Move caret to top of page, or one page up if already at top of page.
 
 Other functionality:
 Compiler integration
@@ -119,5 +124,28 @@ Language-aware movement
 Word characters (for word selection)
 Auto-complete
 Autoformat/autoindent
+HOTSPOT_RELEASE_CLICK
+
+Scintilla events (I've removed a few):
+CHANGE
+CHARADDED
+SAVEPOINTREACHED SAVEPOINTLEFT
+ROMODIFYATTEMPT
+KEY
+DOUBLECLICK
+UPDATEUI
+MODIFIED
+MACRORECORD
+MARGINCLICK
+NEEDSHOWN
+PAINTED
+USERLISTSELECTION
+URIDROPPED
+DWELLSTART DWELLEND (mouse "dwells" over spot)
+START_DRAG DRAG_OVER DO_DROP
+ZOOM
+HOTSPOT_CLICK HOTSPOT_DCLICK HOTSPOT_RELEASE_CLICK
+CALLTIP_CLICK
+AUTOCOMP_SELECTION AUTOCOMP_CANCELLED AUTOCOMP_CHAR_DELETED
 */
 
