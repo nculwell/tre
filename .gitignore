@@ -6,3 +6,4 @@ dbg.log
 libtermkey/*
 test/*.h
 test/test_main
+*~
