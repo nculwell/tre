@@ -5,6 +5,14 @@
 // #define LOG_DRAWING
 
 #if INTERFACE
+
+// Type representing return values of operations that can succeed
+// or fail.
+enum TRE_OpResult {
+  TRE_FAIL = 0,
+  TRE_SUCC = 1
+}
+
 // Size of the output buffer used in TRE_Buf_CursorToStringBuffer.
 #define TRE_BUF_OUTPUT_BUFFER_LEN (33 + 4 * 20)
 

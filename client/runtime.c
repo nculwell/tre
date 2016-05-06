@@ -19,10 +19,6 @@ typedef struct {
   WINDOW *statln;
 } TRE_RT;
 
-enum TRE_OpResult {
-  TRE_FAIL = 0,
-  TRE_SUCC = 1
-}
 #endif
 
 // Global reference to rt is needed so that it can be accessible to Guile

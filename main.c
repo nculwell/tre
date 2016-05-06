@@ -6,6 +6,9 @@
 #include "mh_main.h"
 #include <getopt.h>
 #include <malloc.h>
+#ifdef _WIN32
+# include <windows.h>
+#endif
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
