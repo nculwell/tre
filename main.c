@@ -14,7 +14,43 @@
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
 int main(int argc, char *argv[]) {
+  net_init();
+  main_loop();
   return 0;
+}
+
+void main_loop() {
+  int server_fd = net_listen();
+  for (;;) {
+    int client_fd = net_accept(server_fd);
+    if (client_fd >= 0) {
+      for (;;) {
+        char client_cmd[BUFSIZ];
+        char server_cmd[BUFSIZ];
+        int client_cmd_len = net_recv(client_fd, client_cmd, BUFSIZ - 1);
+        if (client_cmd_len < 1)
+          break;
+        client_cmd[client_cmd_len] = '\0';
+        int server_cmd_len = process_command(client_cmd, client_cmd_len, server_cmd);
+        if (server_cmd_len == 6 && !strcmp("quit\r\n", server_cmd)) {
+          net_close(client_fd);
+          break;
+        }
+        int send_result = net_send(client_fd, server_cmd, server_cmd_len);
+        if (send_result < 1)
+          break;
+      }
+    }
+  }
+}
+
+int process_command(const char* client_cmd, int client_cmd_len, char* server_cmd) {
+  if (client_cmd_len == 6 && !strcmp("quit\r\n", client_cmd)) {
+    strcpy(server_cmd, "quit\r\n");
+  } else {
+    strcpy(server_cmd, "OK\r\n");
+  }
+  return strlen(server_cmd);
 }
 
 /*

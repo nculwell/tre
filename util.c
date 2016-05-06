@@ -15,15 +15,19 @@
 
 void* my_alloc(size_t size) {
   void* ptr = malloc(size);
-  if (!ptr)
+  if (!ptr) {
+    fprintf(stderr, "Failed malloc.\n");
     abort();
+  }
   return ptr;
 }
 
 void* my_realloc(void* old_ptr, size_t size) {
   void* ptr = realloc(old_ptr, size);
-  if (!ptr)
+  if (!ptr) {
+    fprintf(stderr, "Failed realloc.\n");
     abort();
+  }
   return ptr;
 }
 

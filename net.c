@@ -7,13 +7,24 @@
 # define socklen_t int
 #else
 # include <sys/socket.h>
+# include <netinet/in.h>
 #endif
 
 void net_init() {
-#ifdef __WIN32__
+#ifdef _WIN32
   WORD versionWanted = MAKEWORD(1, 1);
   WSADATA wsaData;
-  WSAStartup(versionWanted, &wsaData);
+  if (NO_ERROR != WSAStartup(versionWanted, &wsaData)) {
+    fprintf(stderr, "Error in WSAStartup.\n");
+    exit(1);
+  }
+#endif
+  atexit(net_cleanup);
+}
+
+void net_cleanup() {
+#ifdef _WIN32
+  WSACleanup();
 #endif
 }
 
@@ -28,50 +39,67 @@ int net_listen() {
   hints.ai_flags = AI_PASSIVE;
   int ai_result = getaddrinfo(NULL, "31909", &hints, &server_info);
   if (0 != ai_result) {
-    abort();
+    exit(1);
   }
   */
-  int sock_fd = socket(AF_INET, SOCK_STREAM, 0);
-  if (-1 == sock_fd) {
-    abort();
+  int server_fd = socket(AF_INET, SOCK_STREAM, 0);
+  if (-1 == server_fd) {
+    fprintf(stderr, "Unable to open socket.\n");
+    exit(1);
   }
   //struct sockaddr my_addr;
   struct sockaddr_in addr;
-  int bind_result = bind(sock_fd, (struct sockaddr*)&addr, sizeof addr);
+  addr.sin_family = AF_INET;
+#ifdef _WIN32
+  addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+#else
+  inet_aton("127.0.0.1", &addr.sin_addr.s_addr);
+#endif
+  addr.sin_port = htons(31909);
+  int bind_result = bind(server_fd, (struct sockaddr*)&addr, sizeof addr);
   if (0 != bind_result) {
-    abort();
+    fprintf(stderr, "Unable to bind socket.\n");
+    exit(1);
   }
-  int listen_result = listen(sock_fd, 3);
+  int listen_result = listen(server_fd, 3);
   if (0 != listen_result) {
-    abort();
+    fprintf(stderr, "Unable to listen on socket.\n");
+    exit(1);
   }
-  return sock_fd;
+  return server_fd;
 }
 
-int net_accept(int sock_fd) {
-  struct sockaddr client_addr;
-  socklen_t client_addr_len;
-  int accepted_fd = accept(sock_fd, &client_addr, &client_addr_len);
-  if (-1 == accepted_fd) {
-    abort();
+int net_accept(int server_fd) {
+  //struct sockaddr client_addr;
+  //socklen_t client_addr_len;
+  //int client_fd = accept(server_fd, &client_addr, &client_addr_len);
+  int client_fd = accept(server_fd, NULL, NULL);
+  if (-1 == client_fd) {
+    fprintf(stderr, "Unable to accept incoming connection.\n");
+#ifdef _WIN32
+    fprintf(stderr, "Winsock error: %d\n", WSAGetLastError());
+#endif
+    exit(1);
   }
-  int close_result = net_close(sock_fd);
+  int close_result = net_close(server_fd);
   if (-1 == close_result) {
-    abort();
+    fprintf(stderr, "Unable to close socket.\n");
+    exit(1);
   }
-  return accepted_fd;
+  return client_fd;
 }
 
-int net_recv(int sock_fd) {
+int net_recv(int client_fd, char* buf, int buf_len) {
   // TODO: MSG_DONTWAIT flag for nonblocking
-  char buf[BUFSIZ];
-  int buf_len = BUFSIZ;
-  int recv_len = recv(sock_fd, buf, buf_len, 0);
+  //char buf[BUFSIZ];
+  //int buf_len = BUFSIZ;
+  int recv_len = recv(client_fd, buf, buf_len, 0);
   if (-1 == recv_len) {
     if (EAGAIN == errno || EWOULDBLOCK == errno) {
       return -1;
     } else {
-      abort();
+      fprintf(stderr, "Error sending data via socket.\n");
+      exit(1);
     }
   }
   if (0 == recv_len) {
@@ -81,20 +109,21 @@ int net_recv(int sock_fd) {
   return recv_len;
 }
 
-int net_send(int sock_fd, char* buf, int buf_len) {
+int net_send(int client_fd, char* buf, int buf_len) {
   // TODO: MSG_DONTWAIT flag for nonblocking
-  int send_result = send(sock_fd, buf, buf_len, 0);
+  int send_result = send(client_fd, buf, buf_len, 0);
   if (-1 == send_result) {
     if (EAGAIN == errno || EWOULDBLOCK == errno) {
       return -1;
     } else {
-      abort();
+      fprintf(stderr, "Error receiving data via socket.\n");
+      exit(1);
     }
   }
   if (send_result < buf_len) {
     // TODO: If not all data is sent, loop, or queue the rest for later.
     fprintf(stderr, "Send truncated.\n");
-    abort();
+    exit(1);
   }
   return 1;
 }
