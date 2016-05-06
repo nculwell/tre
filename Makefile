@@ -14,9 +14,9 @@ LDFLAGS =
 LDLIBS =
 #LDLIBS += $(shell pkg-config --libs glib-2.0)
 #LDLIBS += $(shell pkg-config --libs guile-2.0)
-LDLIBS += -lncurses
+#LDLIBS += -lncurses
 #LDLIBS += -L/usr/lib
-LDLIBS += /usr/lib/libcunit.a
+#LDLIBS += /usr/lib/libcunit.a
 #LDLIBS += libtermkey/.libs/libtermkey.a
 #LDLIBS += libuv/out/Debug/libuv.a
 LDLIBS += dep/libuv/.libs/libuv.a
@@ -34,7 +34,7 @@ SUBPROJECTS =
 EXECUTABLE=tre
 
 all: BASE_CFLAGS += -g
-all: LDFLAGS += -rdynamic
+#all: LDFLAGS += -rdynamic
 #all: MHFLAGS += -L
 all: common
 release: CFLAGS += -DNDEBUG
