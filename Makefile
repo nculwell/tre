@@ -12,6 +12,7 @@ CFLAGS += -Idep/libuv/include
 GUILE_CFLAGS = $(BASE_CFLAGS)
 #LDFLAGS = -mwindows
 LDLIBS =
+LDLIBS += -lws2_32
 #LDLIBS += $(shell pkg-config --libs glib-2.0)
 #LDLIBS += $(shell pkg-config --libs guile-2.0)
 #LDLIBS += -lncurses
