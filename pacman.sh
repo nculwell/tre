@@ -1,5 +1,6 @@
 #!/bin/sh
-PACKAGES='make mingw64/mingw-w64-x86_64-make automake libtool autoconf'
+MINGW=mingw64/mingw-w64-x86_64
+PACKAGES="make $MINGW-make automake libtool autoconf $MINGW-cunit"
 pacman -Syuu
 pacman -Su --noconfirm $PACKAGES
 

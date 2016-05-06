@@ -13,6 +13,10 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-parameter"
 
+int main(int argc, char *argv[]) {
+  return 0;
+}
+
 /*
 
 #if LOCAL_INTERFACE
