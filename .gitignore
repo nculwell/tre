@@ -7,3 +7,4 @@ libtermkey/*
 test/*.h
 test/test_main
 *~
+*.exe
