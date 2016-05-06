@@ -4,11 +4,8 @@
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <glib.h>
-#include <glib/gstdio.h>
-#include <libguile.h>
+#include <stdint.h>
 #include <limits.h>
-#include <ncurses.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,3 +13,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+// #include <glib.h>
+// #include <glib/gstdio.h>
+// #include <libguile.h>
+// #include <ncurses.h>

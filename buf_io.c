@@ -16,9 +16,9 @@ typedef struct {
 TRE_Buf *TRE_Buf_new(const char *filename) {
   // TODO: It would be much better to attempt to save off data before aborting
   // the program here.
-  TRE_Buf *buf = g_new0(TRE_Buf, 1);
-  buf->text.c = g_new(char, TRE_BUFFER_BLOCK_SIZE);
-  buf->filename = g_strdup(filename);
+  TRE_Buf *buf = my_alloc(sizeof(TRE_Buf));
+  buf->text.c = my_alloc(TRE_BUFFER_BLOCK_SIZE);
+  buf->filename = my_strdup(filename);
   buf->buf_size = TRE_BUFFER_BLOCK_SIZE;
   buf->gap_start = 0;
   buf->gap_len = TRE_BUFFER_GAP_SIZE - 1;
@@ -33,7 +33,7 @@ TRE_Buf *TRE_Buf_new(const char *filename) {
 
 TRE_Buf* TRE_Buf_load_from_string(const char* src) {
   // Scan the string once to find its size and count the lines.
-  TRE_Buf *buf = g_new0(TRE_Buf, 1);
+  TRE_Buf *buf = my_alloc(sizeof(TRE_Buf));
   buf->filename = NULL;
   if (TRE_FAIL == scan_string(buf, src)) {
     return TRE_FAIL;
@@ -44,7 +44,7 @@ TRE_Buf* TRE_Buf_load_from_string(const char* src) {
   buf->buf_size = bufsize;
   // Copy the string into the buffer.
   // TODO: Remove CR characters.
-  buf->text.c = g_new(char, bufsize);
+  buf->text.c = my_alloc(bufsize);
   // Gap starts at offset 0.
   buf->gap_start = 0;
   buf->gap_len = TRE_BUFFER_GAP_SIZE;
@@ -102,11 +102,11 @@ LOCAL TRE_OpResult scan_string(TRE_Buf* buf, const char* str) {
 
 // TODO: Save/load last file position.
 // TODO: Strip CR chars from file as it loads.
-TRE_Buf *TRE_Buf_load(TRE_RT *rt, const char *filename) {
+TRE_Buf *TRE_Buf_load(const char *filename) {
   struct stat fstat_buf;
   int fd = open(filename, O_RDONLY);
   if (fd == -1) {
-    TRE_RT_err_msg(rt, "Unable to open file.");
+    //TRE_RT_err_msg(rt, "Unable to open file.");
     return NULL;
   }
   fstat(fd, &fstat_buf);
@@ -124,9 +124,9 @@ TRE_Buf *TRE_Buf_load(TRE_RT *rt, const char *filename) {
   int buf_size_blocks =
     (file_size + TRE_BUFFER_GAP_SIZE) / TRE_BUFFER_BLOCK_SIZE + 1;
   int bufsize = buf_size_blocks * TRE_BUFFER_BLOCK_SIZE;
-  TRE_Buf *buf = g_new(TRE_Buf, 1);
-  buf->text.c = g_new(char, bufsize);
-  buf->filename = g_strdup(filename);
+  TRE_Buf *buf = my_alloc(sizeof(TRE_Buf));
+  buf->text.c = my_alloc(bufsize);
+  buf->filename = my_strdup(filename);
   buf->buf_size = bufsize;
   buf->text_len = file_size;
   // Cursor starts at offset 0.
@@ -156,7 +156,7 @@ TRE_Buf *TRE_Buf_load(TRE_RT *rt, const char *filename) {
     ssize_t n_read = read(fd, buf->text.c + insert_pos, file_size);
     if (n_read == -1) {
       log_err("Unable to read file.");
-      TRE_RT_err_msg(rt, "Unable to read file.");
+      //TRE_RT_err_msg(rt, "Unable to read file.");
       close(fd);
       return NULL;
     }
@@ -213,34 +213,36 @@ TRE_Buf *TRE_Buf_load(TRE_RT *rt, const char *filename) {
 
 LOCAL TRE_OpResult lookup_file_position(const char* filename,
     line_col_t* pos) {
-  char* edited_file_path = realpath(filename, NULL);
-  char* fpos_file_path = TRE_find_config_file(TRE_SAVED_POSITIONS_FILENAME);
+  char edited_file_path[PATH_MAX];
+  if (!my_realpath(filename, edited_file_path)) {
+    log_err("File path too long.");
+    return TRE_FAIL;
+  }
+  char fpos_file_path[PATH_MAX];
+  int path_len = TRE_find_config_file(TRE_SAVED_POSITIONS_FILENAME, fpos_file_path, PATH_MAX);
   TRE_OpResult result = TRE_FAIL;
   if (NULL == edited_file_path) {
     log_err("Unable to resolve path to file '%s': %s", filename,
-        strerror(errno));
+        strerror(errno)); // FIXME: check errno in TRE_find_config_file
   } else {
-    if (fpos_file_path != NULL) {
-      gchar* fpos_file_contents;
-      GError *error;
-      if (!g_file_get_contents(fpos_file_path, &fpos_file_contents, NULL,
-            &error)) {
+    if (0 < path_len) {
+      char* fpos_file_contents;
+      const char* error;
+      if (!(fpos_file_contents = my_file_get_contents(fpos_file_path, &error))) {
         log_err("Error opening fpos file '%s': %s", fpos_file_path, error);
       } else {
         if (lookup_fpos_in_cont(edited_file_path, fpos_file_contents, pos)) {
           result = TRE_SUCC;
         }
-        g_free(fpos_file_contents);
+        my_free(fpos_file_contents);
       }
-      g_free(fpos_file_path);
     }
-    free(edited_file_path);
   }
   return result;
 }
 
 LOCAL TRE_OpResult lookup_fpos_in_cont(const char* filename,
-    gchar* fpos_file_contents, line_col_t* file_pos) {
+    char* fpos_file_contents, line_col_t* file_pos) {
   logt("Searching for saved position for file: '%s'", filename);
   TRE_Line line;
   line.num = -1;
@@ -287,7 +289,7 @@ LOCAL TRE_OpResult lookup_fpos_in_cont(const char* filename,
   return TRE_FAIL;
 }
 
-LOCAL int next_line_in_buffer(gchar* b, TRE_Line* line) {
+LOCAL int next_line_in_buffer(char* b, TRE_Line* line) {
   line->num++;
   line->off += line->len + 1;
   for (int i = line->off; b[i] != '\0'; i++) {
@@ -304,25 +306,28 @@ LOCAL int next_line_in_buffer(gchar* b, TRE_Line* line) {
 // Return the path to the specified config file, if it exists. Returns NULL if
 // the file doesn't exist, otherwise returns a string that must be freed
 // afterward.
-char* TRE_find_config_file(const char* filename) {
+int TRE_find_config_file(const char* filename, char* config_file_path, int config_file_path_len) {
   const char* config_dir = TRE_DEFAULT_CONFIG_DIR;
   const char* home_dir = getenv("HOME");
-  char* config_file_path =
-    g_strdup_printf("%s/%s/%s", home_dir, config_dir, filename);
+  // FIXME: Implement more flexible string handling here.
+  int path_len = snprintf(config_file_path, config_file_path_len,\
+                          "%s/%s/%s", home_dir, config_dir, filename);
+  if (path_len >= config_file_path_len) {
+    logt("Config path too long.\n");
+    return 0;
+  }
   logt("Looking for fpos file: %s", config_file_path);
   // Check that file exists, and is a regular file. If not, return nothing.
-  GStatBuf statbuf;
-  if (-1 == g_stat(config_file_path, &statbuf)) {
+  struct stat statbuf;
+  if (-1 == stat(config_file_path, &statbuf)) {
     logt("Unable to stat file: %s", strerror(errno));
-    g_free(config_file_path);
-    return NULL;
+    return 0;
   } else if (!S_ISREG(statbuf.st_mode)) {
     logt("Not a file.");
-    g_free(config_file_path);
-    return NULL;
+    return 0;
   } else {
     logt("File found.");
-    return config_file_path;
+    return path_len;
   }
 }
 

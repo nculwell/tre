@@ -1,6 +1,11 @@
 #include "hdrs.c"
 #include "mh_log.h"
-#include <execinfo.h>
+#include <time.h>
+#ifdef _WIN32
+# include <windows.h>
+#else
+# include <execinfo.h>
+#endif
 
 #if INTERFACE
 typedef enum {
@@ -84,7 +89,7 @@ void impl_log(TRE_LogLevel level, const char *file, int line, const char *format
   if (level == LL_FATAL) {
     fprintf(log_file, "(FATAL) ");
   }
-#ifndef NDEBUG
+#if !defined(NDEBUG) && !defined(_WIN32)
   else if (level == LL_TRACE) {
     char func[256];
     fprintf(log_file, "(%s) ", current_function(func, 256));
@@ -101,6 +106,7 @@ void impl_log(TRE_LogLevel level, const char *file, int line, const char *format
   fflush(log_file);
 }
 
+#ifndef _WIN32
 char* current_function(char* func, int len) {
   void *btbuf[256];
   int btsz = backtrace(btbuf, 256);
@@ -133,6 +139,7 @@ char* current_function(char* func, int len) {
     return "?0";
   }
 }
+#endif
 
 /*
 void log_raw(const char *prefix_msg, const char *data, int len)
@@ -156,6 +163,9 @@ void log_raw(const char *prefix_msg, const char *data, int len)
 }
 */
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat"
+
 const char *iso_time(char time_fmt[20])
 {
   time_t rawtime;
@@ -165,8 +175,11 @@ const char *iso_time(char time_fmt[20])
   return time_fmt;
 }
 
+#pragma GCC diagnostic pop
+
 void close_log_file()
 {
   if (NULL != log_file)
     fclose(log_file);
 }
+

@@ -102,7 +102,7 @@ LOCAL void check_gap(TRE_Buf *buf, int extra_space) {
     if (buf->text_len + buf->gap_len > buf->buf_size) {
       // Time to expand the buffer size to fit more text
       buf->buf_size += TRE_BUFFER_BLOCK_SIZE;
-      buf->text.c = g_realloc(buf->text.c, buf->buf_size);
+      buf->text.c = my_realloc(buf->text.c, buf->buf_size);
     }
     if (buf->gap_start < buf->text_len) {
       // Gap is before the end of the buffer, so the portion after the gap
